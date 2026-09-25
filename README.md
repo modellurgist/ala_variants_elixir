@@ -9,8 +9,10 @@ the Elixir linter is [modellurgist/ala_lint_elixir](https://github.com/modellurg
 > [Abstraction Layered Architecture](https://www.abstractionlayeredarchitecture.com/).
 > Not affiliated with or endorsed by the author.
 
-Each directory is a self-contained mix project (own `mix.exs`, config, and deps),
-so there is no shared harness or switch script — `cd` into one and run it:
+Each `v*` directory is a self-contained mix project (own `mix.exs`, config, and
+deps), so there is no shared harness or switch script — `cd` into one and run it.
+`coffee_maker/` is a dependency-free mix lib, and `thermometer/` is a single
+illustrative source file:
 
 | Directory | Blog post | What it shows |
 |---|---|---|
@@ -19,6 +21,7 @@ so there is no shared harness or switch script — `cd` into one and run it:
 | `v36-vernacular-core/` | vernacular core | A vernacular `Shop.*` core with linter-enforced purity |
 | `v38-lint-guided/` | lint-guided | A monolith fork brought to ALA by following `ala_lint_elixir` |
 | `coffee_maker/` | coffee-maker LiveView | The ALA coffee-maker domain (extracted, dependency-free) |
+| `thermometer/` | intro thermometer | The blog's single-file thermometer; scores 100/100 (default and `--strict`) |
 
 Run any variant:
 
