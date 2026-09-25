@@ -10,7 +10,7 @@ defmodule ZeroCoupledWeb.EffectInterpreter do
   import Phoenix.LiveView
 
   alias ZeroCoupled.Effects
-  alias ZeroCoupled.Foundation.Carts
+  alias ZeroCoupled.Foundation.{Carts, Orders, Products, Broadcast}
 
   @spec apply_all(Phoenix.LiveView.Socket.t(), [Effects.t()], keyword()) ::
           Phoenix.LiveView.Socket.t()
@@ -46,6 +46,21 @@ defmodule ZeroCoupledWeb.EffectInterpreter do
 
   defp apply_effect(socket, %Effects.Persist{op: :remove} = p, _opts) do
     Carts.remove_item(p.cart_id, p.item_id)
+    socket
+  end
+
+  defp apply_effect(socket, %Effects.FinalizeOrder{cart_id: cart_id}, _opts) do
+    Orders.create(cart_id)
+
+    cart_id
+    |> Carts.list_items()
+    |> Enum.each(fn item ->
+      case Products.decrement_stock(item.product.id, item.quantity) do
+        {:ok, product} -> Broadcast.stock_changed(item.product.id, product.stock)
+        {:error, _} -> :ok
+      end
+    end)
+
     socket
   end
 

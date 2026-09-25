@@ -17,7 +17,8 @@ defmodule ZeroCoupledWeb.CartPage do
   alias ZeroCoupledWeb.CartPage.Generated
   alias ZeroCoupledWeb.EffectInterpreter
   alias ZeroCoupled.Features.{CartItems, Undo, CheckoutFlow, Wishlist}
-  alias ZeroCoupled.Foundation.{Carts, Orders, Products, Broadcast, LedgerGateway}
+  alias ZeroCoupled.Effects
+  alias ZeroCoupled.Foundation.{Carts, Products, Broadcast, LedgerGateway}
   alias ZeroCoupled.Web.Contracts
 
   # Pure API delegated to the generated glue (test/introspection surface).
@@ -115,7 +116,11 @@ defmodule ZeroCoupledWeb.CartPage do
 
   @impl true
   def handle_async(:checkout, {:ok, {:ok, url}}, socket) do
-    finalize_order(socket.assigns.session.cart.cart_id)
+    # The composition reads the cart slot (a feature may not) and emits the
+    # order-completion as a typed effect, so the side-effect runs in the one
+    # interpreter like every other persistence, not inline here.
+    cart_id = socket.assigns.session.cart.cart_id
+    socket = EffectInterpreter.apply_all(socket, [Effects.finalize_order(cart_id)], effect_opts())
     run(socket, &CheckoutFlow.Intents.checkout_succeeded(&1, url))
   end
 
@@ -166,20 +171,6 @@ defmodule ZeroCoupledWeb.CartPage do
     ]
   end
 
-  # Record the order and draw down stock once payment has settled — the work the
-  # app used to do on a provider callback, now that checkout settles inline.
-  defp finalize_order(cart_id) do
-    Orders.create(cart_id)
-
-    cart_id
-    |> Carts.list_items()
-    |> Enum.each(fn item ->
-      case Products.decrement_stock(item.product.id, item.quantity) do
-        {:ok, product} -> Broadcast.stock_changed(item.product.id, product.stock)
-        {:error, _} -> :ok
-      end
-    end)
-  end
 
   defp assign_address_form(socket) do
     changeset = CheckoutFlow.Intents.change_address(socket.assigns.session, %{})

@@ -89,6 +89,12 @@ defmodule ZeroCoupled.Effects do
     @type t :: %__MODULE__{line_items: [map()], metadata: map()}
   end
 
+  defmodule FinalizeOrder do
+    @moduledoc "Record the order and draw down stock for a checked-out cart, described as data. Interpreted by the shell."
+    defstruct [:cart_id]
+    @type t :: %__MODULE__{cart_id: term()}
+  end
+
   @type t ::
           Flash.t()
           | Push.t()
@@ -102,6 +108,7 @@ defmodule ZeroCoupled.Effects do
           | CancelTimer.t()
           | Persist.t()
           | StartCheckout.t()
+          | FinalizeOrder.t()
 
   # ── Constructors (ergonomic + arity-checked) ─────────────────────────
 
@@ -122,4 +129,6 @@ defmodule ZeroCoupled.Effects do
     do: %Persist{op: :remove, cart_id: cart_id, item_id: item_id}
   def start_checkout(line_items, metadata),
     do: %StartCheckout{line_items: line_items, metadata: metadata}
+
+  def finalize_order(cart_id), do: %FinalizeOrder{cart_id: cart_id}
 end
