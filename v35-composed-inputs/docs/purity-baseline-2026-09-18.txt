@@ -1,0 +1,61 @@
+[D] ↗ lib/zero_coupled/features/cart_items.ex:109:34 [contract_literal] Effects.stream_insert(:cart_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/cart_items.ex:125:34 [contract_literal] Effects.stream_delete(:cart_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/cart_items.ex:126:25 [contract_literal] Effects.push("item-removed", …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/cart_items.ex:141:33 [contract_literal] Effects.stream_delete(:cart_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/cart_items.ex:154:58 [contract_literal] Effects.stream_insert(:cart_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/cart_items.ex:187:77 [contract_literal] Effects.stream_insert(:cart_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/cart_items.ex:197:29 [contract_literal] Effects.stream_insert(:cart_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/cart_items.ex:206:35 [contract_literal] Effects.stream_insert(:cart_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/cart_items.ex:219:9 [domain_ref] presentation references domain module ZeroCoupled.Domain.StockStatus
+[D] ↗ lib/zero_coupled/features/cart_items.ex:229 [domain_shape] deep domain-shape read @item.product.thumbnail — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/cart_items.ex:229 [domain_shape] deep domain-shape read @item.product.name — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/cart_items.ex:231:38 [domain_shape] deep domain-shape read @item.product.name — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/cart_items.ex:232:58 [domain_shape] deep domain-shape read @item.product.amount — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/cart_items.ex:233 [domain_shape] deep domain-shape read @item.product.stock — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/cart_items.ex:239:26 [event_string] hardcoded intent string phx-click="toggle_gift_wrap" — pass an event port instead
+[D] ↗ lib/zero_coupled/features/cart_items.ex:243:30 [event_string] hardcoded intent string phx-click="save_for_later" — pass an event port instead
+[D] ↗ lib/zero_coupled/features/cart_items.ex:246:30 [event_string] hardcoded intent string phx-click="toggle_wishlist" — pass an event port instead
+[D] ↗ lib/zero_coupled/features/cart_items.ex:255:22 [event_string] hardcoded intent string phx-click="update_quantity" — pass an event port instead
+[D] ↗ lib/zero_coupled/features/cart_items.ex:263:22 [event_string] hardcoded intent string phx-click="update_quantity" — pass an event port instead
+[D] ↗ lib/zero_coupled/features/cart_items.ex:270:50 [domain_shape] deep domain-shape read @item.product.amount — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/cart_items.ex:271:28 [event_string] hardcoded intent string phx-click="remove_item" — pass an event port instead
+[D] ↗ lib/zero_coupled/features/saved_items.ex:74:33 [contract_literal] Effects.stream_delete(:saved_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/saved_items.ex:83:59 [contract_literal] Effects.stream_insert(:saved_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/saved_items.ex:97 [domain_shape] deep domain-shape read @item.product.thumbnail — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/saved_items.ex:97 [domain_shape] deep domain-shape read @item.product.name — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/saved_items.ex:99:38 [domain_shape] deep domain-shape read @item.product.name — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/saved_items.ex:100:58 [domain_shape] deep domain-shape read @item.product.amount — take a projected port value (advisory)
+[D] ↗ lib/zero_coupled/features/saved_items.ex:102:26 [event_string] hardcoded intent string phx-click="move_to_cart" — pass an event port instead
+[D] ↗ lib/zero_coupled/features/undo.ex:110:26 [event_string] hardcoded intent string phx-click="undo_remove" — pass an event port instead
+[D] ↗ lib/zero_coupled/features/wishlist.ex:76:45 [contract_literal] Effects.stream_insert(:wishlist_products, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/wishlist.ex:77:47 [contract_literal] Effects.stream_delete(:wishlist_products, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/wishlist.ex:92:62 [contract_literal] Effects.stream_delete(:wishlist_products, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/wishlist.ex:102:64 [contract_literal] Effects.stream_delete(:wishlist_products, …) restates a contract literal — use Web.Contracts
+[D] ↗ lib/zero_coupled/features/wishlist.ex:123:20 [event_string] hardcoded intent string phx-click="add_wishlisted_to_cart" — pass an event port instead
+[D] ↗ lib/zero_coupled/features/wishlist.ex:129:26 [event_string] hardcoded intent string phx-click="remove_wishlist" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/cart_live/checkout_view.ex:51:51 [event_string] hardcoded intent string phx-change="validate_address" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/cart_live/checkout_view.ex:51:81 [event_string] hardcoded intent string phx-submit="submit_address" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/cart_live/checkout_view.ex:52:72 [dom_contract] literal phx-hook="AutoFocus" — source it from a contracts module
+[D] ↗ lib/zero_coupled_web/live/cart_live/checkout_view.ex:72:28 [event_string] hardcoded intent string phx-click="edit_address" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/cart_live/checkout_view.ex:73:28 [event_string] hardcoded intent string phx-click="pay" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/cart_live/checkout_view.ex:97:26 [event_string] hardcoded intent string phx-click="pay" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:19:9 [domain_ref] presentation references domain module ZeroCoupled.Cart
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:20:9 [domain_ref] presentation references domain module ZeroCoupled.Features
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:21:9 [domain_ref] presentation references domain module ZeroCoupled.Domain
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:32:18 [dom_contract] literal stream container id="cart_items" — derive it from the slot/contracts
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:32:60 [dom_contract] literal phx-hook="RemoveFade" — source it from a contracts module
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:45:18 [dom_contract] literal stream container id="saved_items" — derive it from the slot/contracts
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:56:18 [dom_contract] literal stream container id="wishlist_products" — derive it from the slot/contracts
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:85:20 [event_string] hardcoded intent string phx-click="switch_tab" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:135:24 [event_string] hardcoded intent string phx-click="select_shipping" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:148:23 [event_string] hardcoded intent string phx-submit="apply_promo" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/cart_live/index_view.ex:166:20 [event_string] hardcoded intent string phx-click="start_checkout" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/product_live/form_component.ex:20:21 [event_string] hardcoded intent string phx-change="validate" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/product_live/form_component.ex:21:21 [event_string] hardcoded intent string phx-submit="save" — pass an event port instead
+[D] ↗ lib/zero_coupled_web/live/product_live/index.ex:48 [pubsub_tuple] handle_info matches untyped tagged tuple {:product_saved, …} — route a typed fact via the manifest
+[D] ↗ lib/zero_coupled_web/live/product_live/index.ex:53 [pubsub_tuple] handle_info matches untyped tagged tuple {:stock_changed, …} — route a typed fact via the manifest
+[D] ↗ lib/zero_coupled_web/pages/cart_page.ex:107 [pubsub_tuple] handle_info matches untyped tagged tuple {:stock_changed, …} — route a typed fact via the manifest
+[D] ↗ lib/zero_coupled_web/pages/cart_page.ex:110 [pubsub_tuple] handle_info matches untyped tagged tuple {:undo_expired, …} — route a typed fact via the manifest
+[D] ↗ test/zero_coupled/effects_test.exs:8:25 [contract_literal] Effects.push("e", …) restates a contract literal — use Web.Contracts
+[D] ↗ test/zero_coupled/effects_test.exs:9:34 [contract_literal] Effects.stream_insert(:cart_items, …) restates a contract literal — use Web.Contracts
+[D] ↗ test/zero_coupled/effects_test.exs:10:34 [contract_literal] Effects.stream_delete(:cart_items, …) restates a contract literal — use Web.Contracts
