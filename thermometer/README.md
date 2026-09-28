@@ -11,7 +11,7 @@ covers 1.6.4 to 1.6.6.
 | Folder | Spray | What changes | `ala_lint` default / strict / super-strict |
 |---|---|---|---|
 | `1.6.1-bad/` | §1.6.1 | Procedures calling each other as peers, literals baked in, hidden state in the process dictionary | 0/F · 0/F · 0/F |
-| `1.6.3-composed/` | §1.6.3 | Generic domain abstractions under a `Thermometer` composition that holds the literals. The composition still handles every value, carries each updated struct, and guards with `if`s | 100/A · 100/A · 67/C |
+| `1.6.3-composed/` | §1.6.3 | Generic domain abstractions under a `Thermometer` composition that holds the literals. The composition still handles every value, carries each updated struct, and guards with `if`s | 100/A · 100/A · 50/D |
 | `1.6.4-chain/` | §1.6.4 | Build, then run: the app lists configured instances, and `Chain` moves the data. `:quiet` replaces the `if`s | 100/A · 100/A · 100/A |
 | `1.6.4-stream/` | §1.6.4 | The same goal with streams: each abstraction is a configured `Stream -> Stream` function | 100/A · 100/A · 100/A |
 | `1.6.5-circuit/` | §1.6.5 | Instances wired as a graph, with no processes; the sampler fans out to a display and a high-temperature tracker | 100/A · 100/A · 100/A |
@@ -44,8 +44,8 @@ What the scores do and don't show:
   each other, because the whole bad version is one module, which it treats as one application
   abstraction. The checklist's R1 "working chain" and R3 catch those; the linter can't yet.
 - **1.6.3** is clean at the default and strict levels. Its remaining findings are R11's: the two
-  nil-guard `if`s in `push_reading/2`, reported as guards, and the application's share of the
-  functions. They're real findings, scored only under `--super-strict`.
-- **1.6.4 onward** is clean at every level. The step the linter *can't* see is the most important
-  one: from 1.6.4 the application no longer handles the data. Measuring that is still open (see the
-  ALA Checklist, "Past the pipe").
+  nil-guard `if`s in `push_reading/2`, reported as guards; `push_reading/2` binding `scaled` and
+  `smoothed` only to pass them to the next stage (Spray's "handling the data"); and the application's
+  share of the functions. They're real findings, scored only under `--super-strict`.
+- **1.6.4 onward** is clean at every level, and the linter now sees why: from 1.6.4 the application
+  no longer handles the data, and the handling-data check has nothing to report.
