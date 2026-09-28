@@ -3,7 +3,8 @@
 # a Thermometer composition that wires them and holds the application literals.
 # `mix ala.lint` (with a layer map putting Thermometer at the top and the rest
 # below) scores this 100/100 at the default and --strict levels; only the
-# aspirational --super-strict R11 flags push_reading's two nil-guards.
+# --super-strict R11 flags push_reading's two nil-guards, a real finding: Spray's
+# application layer has no ifs (grows_up/ removes them).
 
 defmodule OffsetAndScale do
   defstruct [:offset, :scale]
