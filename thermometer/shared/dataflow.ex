@@ -1,5 +1,5 @@
-# Shared by the other scripts: the dataflow paradigm (Step, Chain) and the
-# generic domain abstractions. Nothing here knows about thermometers.
+# The dataflow paradigm (Step, Chain) and the generic domain abstractions shared by
+# the §1.6.4–1.6.6 steps. Nothing here knows about thermometers.
 
 defprotocol Step do
   @doc "Returns {:emit, output, step} when it has a result, {:quiet, step} when it does not."
@@ -84,3 +84,11 @@ defmodule Display do
   end
 end
 
+defmodule Maximum do
+  defstruct max: nil
+
+  defimpl Step do
+    def push(%{max: m} = s, v) when m != nil and v <= m, do: {:quiet, s}
+    def push(s, v), do: {:emit, v, %{s | max: v}}
+  end
+end

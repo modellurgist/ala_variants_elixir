@@ -1,10 +1,8 @@
-# The ALA thermometer from the intro blog post, in one file: four generic
-# domain abstractions (OffsetAndScale, LowPassFilter, SampleEvery, Display) and
-# a Thermometer composition that wires them and holds the application literals.
-# `mix ala.lint` (with a layer map putting Thermometer at the top and the rest
-# below) scores this 100/100 at the default and --strict levels; only the
-# --super-strict R11 flags push_reading's two nil-guards, a real finding: Spray's
-# application layer has no ifs (grows_up/ removes them).
+# Spray §1.6.3: four generic domain abstractions (OffsetAndScale, LowPassFilter,
+# SampleEvery, Display) under a Thermometer composition that holds the application
+# literals. The composition still handles every value and carries each updated
+# struct, and push_reading's two nil-guards are app logic (R11); the later steps
+# remove both.
 
 defmodule OffsetAndScale do
   defstruct [:offset, :scale]
@@ -40,7 +38,7 @@ defmodule Thermometer do
   def new(opts \\ []) do
     %__MODULE__{
       oas: %OffsetAndScale{offset: -200, scale: 0.2},
-      lpf: %LowPassFilter{strength: 10, last_output: Keyword.get(opts, :lpf_initial, 400.0)},
+      lpf: %LowPassFilter{strength: 10, last_output: Keyword.get(opts, :lpf_initial, 40.0)},
       sample: %SampleEvery{n: 10},
       display: %Display{label: "Temperature", units: "C"}
     }

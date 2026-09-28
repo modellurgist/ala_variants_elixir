@@ -1,6 +1,4 @@
-# Spray 1.6.4, build then run: the app lists configured instances; Chain runs them.
-Code.require_file("dataflow.exs", __DIR__)
-
+# Spray §1.6.4, build then run: the app lists configured instances; Chain runs them.
 defmodule Thermometer do
   def program do
     Chain.new([
@@ -12,7 +10,3 @@ defmodule Thermometer do
     ])
   end
 end
-
-# Simulated ADC readings.
-readings = Enum.map(1..30, fn i -> 400 + rem(i, 7) end)
-Thermometer.program() |> Chain.run(readings)

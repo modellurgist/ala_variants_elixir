@@ -1,7 +1,13 @@
-# Spray 1.6.6 in LiveView: HEEx nesting is the "display inside" wiring, assigns are
+# Spray §1.6.6 in LiveView: HEEx nesting is the "display inside" wiring, assigns are
 # where the dataflow lands, and CircuitRunner pushes results into them.
-Mix.install([{:phoenix_live_view, "~> 1.0"}])
-Code.require_file("circuit.exs", __DIR__)
+# A sink for the LiveView paradigm: its output means "put this in assign `key`".
+defmodule ToAssign do
+  defstruct [:key]
+
+  defimpl Step do
+    def push(%{key: key} = s, v), do: {:emit, {:assign, key, v}, s}
+  end
+end
 
 defmodule Widgets do
   use Phoenix.Component
@@ -45,7 +51,7 @@ defmodule Thermometer do
     |> Circuit.wire(:filter, :sample)
     |> Circuit.wire(:sample, :format)
     |> Circuit.wire(:format, :temperature)
-    |> Circuit.wire(:filter, :high)
+    |> Circuit.wire(:sample, :high)
     |> Circuit.wire(:high, :high_format)
     |> Circuit.wire(:high_format, :high_temperature)
   end
@@ -55,11 +61,11 @@ defmodule ThermometerLive do
   use Phoenix.LiveView
   import Widgets
 
-  def mount(_params, _session, socket) do
-    {:ok, assign(socket, program: Thermometer.circuit(), temperature: "--", high: "--")}
-  end
+  def mount(_params, _session, socket),
+    do: {:ok, assign(socket, program: Thermometer.circuit(), temperature: "--", high: "--")}
 
-  def handle_info({:adc, reading}, socket), do: {:noreply, CircuitRunner.feed(socket, :adc, reading)}
+  def handle_info({:adc, reading}, socket),
+    do: {:noreply, CircuitRunner.feed(socket, :adc, reading)}
 
   def render(assigns) do
     ~H"""
@@ -72,23 +78,3 @@ defmodule ThermometerLive do
     """
   end
 end
-
-# Drive the LiveView callbacks directly with simulated readings, then render.
-socket = struct(Phoenix.LiveView.Socket)
-{:ok, socket} = ThermometerLive.mount(%{}, %{}, socket)
-
-socket =
-  Enum.reduce(1..30, socket, fn i, socket ->
-    {:noreply, socket} = ThermometerLive.handle_info({:adc, 400 + rem(i, 7)}, socket)
-    socket
-  end)
-
-IO.inspect(Map.take(socket.assigns, [:temperature, :high]))
-
-html =
-  socket.assigns
-  |> ThermometerLive.render()
-  |> Phoenix.HTML.Safe.to_iodata()
-  |> IO.iodata_to_binary()
-
-IO.puts(html)

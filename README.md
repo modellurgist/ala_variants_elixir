@@ -11,8 +11,8 @@ the Elixir linter is [modellurgist/ala_lint_elixir](https://github.com/modellurg
 
 Each `v*` directory is a self-contained mix project (own `mix.exs`, config, and
 deps), so there is no shared harness or switch script — `cd` into one and run it.
-`coffee_maker/` is a dependency-free mix lib, `thermometer/` is a single
-illustrative source file, and `thermometer/grows_up/` holds runnable scripts:
+`coffee_maker/` is a dependency-free mix lib, and `thermometer/` holds one folder per step of
+Spray's thermometer example, each runnable with `elixir`:
 
 | Directory | Blog post | What it shows |
 |---|---|---|
@@ -21,8 +21,7 @@ illustrative source file, and `thermometer/grows_up/` holds runnable scripts:
 | `v36-vernacular-core/` | vernacular core | A vernacular `Shop.*` core with linter-enforced purity |
 | `v38-lint-guided/` | lint-guided | A monolith fork brought to ALA by following `ala_lint_elixir` |
 | `coffee_maker/` | coffee-maker LiveView | The ALA coffee-maker domain (extracted, dependency-free) |
-| `thermometer/` | intro thermometer | The blog's single-file thermometer; scores 100/100 (default and `--strict`) |
-| `thermometer/grows_up/` | the thermometer grows up | Spray's next steps (build then run, instances with ports, LiveView wiring) as runnable scripts |
+| `thermometer/` | intro thermometer; the thermometer grows up | Spray's thermometer step by step (§1.6.1 to §1.6.6), one folder per step, each runnable and scored by `ala_lint` |
 
 Run any variant:
 

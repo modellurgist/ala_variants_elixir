@@ -1,6 +1,3 @@
-# Spray 1.6.5 without processes: a pure graph of named instances plus a runner.
-Code.require_file("dataflow.exs", __DIR__)
-
 # A pure graph of wired instances. Emissions from a part with no outgoing wire leave
 # the circuit, so the caller gets them back without naming any intermediate value.
 defmodule Circuit do
@@ -33,22 +30,4 @@ defmodule Circuit do
   end
 
   defp put_part(c, id, part), do: %{c | parts: Map.put(c.parts, id, part)}
-end
-
-defmodule Maximum do
-  defstruct max: nil
-
-  defimpl Step do
-    def push(%{max: m} = s, v) when m != nil and v <= m, do: {:quiet, s}
-    def push(s, v), do: {:emit, v, %{s | max: v}}
-  end
-end
-
-# A sink for the LiveView paradigm: its output means "put this in assign `key`".
-defmodule ToAssign do
-  defstruct [:key]
-
-  defimpl Step do
-    def push(%{key: key} = s, v), do: {:emit, {:assign, key, v}, s}
-  end
 end
