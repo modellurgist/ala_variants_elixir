@@ -5,6 +5,9 @@ example apps behind the blog posts. The checklist and encoding notation
 themselves live in [modellurgist/ala_checklist](https://github.com/modellurgist/ala_checklist);
 the Elixir linter is [modellurgist/ala_lint_elixir](https://github.com/modellurgist/ala_lint_elixir).
 
+New to ALA? [getdown.dev](https://getdown.dev) has an introduction to it, guides to applying it,
+and posts walking through most of the designs here.
+
 > Independent, unofficial examples applying John Spray's
 > [Abstraction Layered Architecture](https://www.abstractionlayeredarchitecture.com/).
 > Not affiliated with or endorsed by the author.
@@ -16,15 +19,15 @@ Spray's thermometer example, each runnable with `elixir`:
 
 | Directory | Blog post | What it shows |
 |---|---|---|
-| `v30-committed-codegen/` | (folded into the composed inputs post) | Manifest-as-data + generated, committed glue; `mix zc.gen --check` in CI |
-| `v35-composed-inputs/` | composed inputs | Composed inputs on the committed-codegen spine; hoisted calibration |
-| `v36-vernacular-core/` | vernacular core | A vernacular `Shop.*` core with linter-enforced purity |
-| `v38-lint-guided/` | lint-guided | A monolith fork brought to ALA by following `ala_lint_elixir` |
-| `v39-bound-ports/` | (unpublished) | Features as `{state, outputs}` functions; each page is one `bindings/1` map from feature ports to streams, assigns, flashes, timers, other features; a 111-line Binder runs it |
-| `v41-feature-components/` | (unpublished) | The `phx.gen.live` shape: each feature a LiveComponent instance owning its state, stream, events and store writes; the page places, configures, and routes announcements with `send_update`; 18 lines of paradigm |
-| `v40-circuit-instances/` | (unpublished) | The same features as Step instances in a circuit the page wires at mount; LiveComponents own their events and push into named inputs; loading is a store source |
-| `coffee_maker/` | coffee-maker LiveView | The ALA coffee-maker domain (extracted, dependency-free) |
-| `thermometer/` | intro thermometer; the thermometer grows up | Spray's thermometer step by step (§1.6.1 to §1.6.6), one folder per step, each runnable and scored by `ala_lint` |
+| `v30-committed-codegen/` | [composed inputs](https://getdown.dev/blog/intro-to-v35-composed-inputs/) (its spine, now covered there) | Manifest-as-data + generated, committed glue; `mix zc.gen --check` in CI |
+| `v35-composed-inputs/` | [composed inputs](https://getdown.dev/blog/intro-to-v35-composed-inputs/) | Composed inputs on the committed-codegen spine; hoisted calibration |
+| `v36-vernacular-core/` | [vernacular core](https://getdown.dev/blog/intro-to-v36-vernacular-core/) | A vernacular `Shop.*` core with linter-enforced purity |
+| `v38-lint-guided/` | [lint-guided](https://getdown.dev/blog/intro-to-v38-lint-guided/) | A monolith fork brought to ALA by following `ala_lint_elixir` |
+| `v39-bound-ports/` | [bound ports](https://getdown.dev/blog/intro-to-v39-bound-ports/) | Features as `{state, outputs}` functions; each page is one `bindings/1` map from feature ports to streams, assigns, flashes, timers, other features; a 111-line Binder runs it |
+| `v40-circuit-instances/` | [circuit instances](https://getdown.dev/blog/intro-to-v40-circuit-instances/) | The same features as Step instances in a circuit the page wires at mount; LiveComponents own their events and push into named inputs; loading is a store source |
+| `v41-feature-components/` | [feature components](https://getdown.dev/blog/intro-to-v41-feature-components/) | The `phx.gen.live` shape: each feature a LiveComponent instance owning its state, stream, events and store writes; the page places, configures, and routes announcements with `send_update`; 18 lines of paradigm |
+| `coffee_maker/` | [coffee-maker LiveView](https://getdown.dev/blog/coffee-maker-liveview/) | The ALA coffee-maker domain (extracted, dependency-free) |
+| `thermometer/` | [intro thermometer](https://getdown.dev/blog/intro-to-ala-thermometer/); [the thermometer grows up](https://getdown.dev/blog/thermometer-grows-up/) | Spray's thermometer step by step (§1.6.1 to §1.6.6), one folder per step, each runnable and scored by `ala_lint` |
 
 Run any variant:
 
