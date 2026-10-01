@@ -1,15 +1,19 @@
 defmodule ZeroCoupled.Features.Checkout.Panel do
   @moduledoc """
   Checkout as a UI instance: the step screens, the address form, the payment job and the order
-  it places when paid. Config: `cart_id`, `pricing`, `flow`, `start`, `url_edges`, `milestones`, `gateway`, `urls`, `requested_step` (from the URL; honoured only along
+  it places when paid. Config: `cart_id`, `pricing` (a `Pricing`), `store` (the cart store),
+  `stock_levels` (a read function), `place_order` (a `PlaceOrder`), `flow`, `start`, `url_edges`, `milestones`, `gateway`, `urls`, `requested_step` (from the URL; honoured only along
   `url_edges`). Announces `{:checkout, :blocked, reason}` and `{:checkout, :step, step}`.
   """
   use ZeroCoupledWeb, :live_component
   import ZeroCoupled.Catalog.Rows, only: [milestones: 1]
   alias ZeroCoupled.Cart
+  alias ZeroCoupled.Domain.PlaceOrder
   alias ZeroCoupled.Features.Checkout
-  alias ZeroCoupled.Foundation.{Broadcast, Carts, Orders, Products}
   alias ZeroCoupledWeb.Paradigms.Instance
+
+  @doc "The ports this instance announces, as `{:checkout, port, payload}`."
+  def announces, do: [:step, :blocked]
 
   def update(assigns, s), do: {:ok, s |> assign(assigns) |> ensure_started() |> follow_url()}
 
@@ -21,7 +25,7 @@ defmodule ZeroCoupled.Features.Checkout.Panel do
         flow: a.flow,
         start: a.start,
         url_edges: a.url_edges,
-        stock_levels: &Products.stock_levels/1
+        stock_levels: a.stock_levels
       )
 
     cart = load_cart(a)
@@ -76,21 +80,15 @@ defmodule ZeroCoupled.Features.Checkout.Panel do
   defp land(s, {:done, url}), do: redirect(finalize(s), external: url)
   defp land(s, out), do: Instance.announce(s, :checkout, out)
 
-  defp load_cart(%{cart_id: cart_id, pricing: pricing}),
-    do: Cart.new(cart_id: cart_id, items: Carts.list_items(cart_id), config: Map.new(pricing))
+  defp load_cart(%{cart_id: cart_id, pricing: pricing, store: store}),
+    do: Cart.new(cart_id: cart_id, items: store.list_items(cart_id), pricing: pricing)
 
   defp charge(%{gateway: gateway, urls: urls}, line_items, cart_id),
     do: gateway.create_checkout_session(line_items, %{"cart_id" => cart_id}, urls)
 
   # paid: the order exists, the cart is complete, and every bought product's stock drops
-  defp finalize(%{assigns: %{cart_id: cart_id}} = s) do
-    Orders.create(cart_id)
-
-    for item <- Carts.list_items(cart_id),
-        {:ok, product} <- [Products.decrement_stock(item.product.id, item.quantity)] do
-      Broadcast.stock_changed(product.id, product.stock)
-    end
-
+  defp finalize(%{assigns: %{cart_id: cart_id, place_order: place_order}} = s) do
+    {:ok, _order} = PlaceOrder.run(place_order, cart_id)
     s
   end
 

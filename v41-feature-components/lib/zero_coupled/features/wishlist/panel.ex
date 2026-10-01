@@ -5,6 +5,9 @@ defmodule ZeroCoupled.Features.Wishlist.Panel do
   alias ZeroCoupled.Features.Wishlist
   alias ZeroCoupledWeb.Paradigms.Instance
 
+  @doc "The ports this instance announces, as `{:wishlist, port, payload}`."
+  def announces, do: [:count, :ids, :added, :dropped, :taken]
+
   def mount(socket),
     do:
       {:ok, socket |> stream(:wishlist_products, []) |> assign(state: Wishlist.new([]), count: 0)}

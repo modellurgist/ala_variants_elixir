@@ -1,0 +1,83 @@
+flowchart LR
+  add_line["add_line<br/>AddLine"]
+  added_notice["added_notice<br/>ToFlash<br/>text: Added to cart"]
+  address["address<br/>ToAssign<br/>name: :address"]
+  address_form["address_form<br/>ToForm<br/>name: :address_form"]
+  blocked_notice["blocked_notice<br/>ToFlash"]
+  cart["cart<br/>Cart"]
+  cart_rows["cart_rows<br/>ToComponent<br/>id: cart<br/>module: CartPanel"]
+  charge["charge<br/>ToAsync<br/>name: :payment<br/>CartPage.charge/1"]
+  checkout["checkout<br/>Checkout"]
+  go["go<br/>ToRedirect"]
+  lines["lines<br/>FromStore<br/>Carts.list_items/1"]
+  moved_notice["moved_notice<br/>ToFlash<br/>text: Moved to cart"]
+  persist["persist<br/>ToStore<br/>Carts.apply_change/1"]
+  place_order["place_order<br/>PlaceOrder<br/>Broadcast.stock_changed/2"]
+  promo_bad["promo_bad<br/>ToAssign<br/>name: :promo_error"]
+  promo_error["promo_error<br/>ToFlash<br/>text: Invalid promo code"]
+  promo_notice["promo_notice<br/>ToFlash<br/>text: Promo applied!"]
+  promo_ok["promo_ok<br/>ToAssign<br/>name: :promo_error"]
+  restored_notice["restored_notice<br/>ToFlash<br/>text: Item restored"]
+  saved["saved<br/>SavedItems"]
+  saved_count["saved_count<br/>ToAssign<br/>name: :saved_count"]
+  saved_notice["saved_notice<br/>ToFlash<br/>text: Saved for later"]
+  saved_rows["saved_rows<br/>ToComponent<br/>id: saved<br/>module: SavedPanel"]
+  step["step<br/>ToAssign<br/>name: :step"]
+  summary["summary<br/>ToAssign<br/>name: :summary"]
+  tab["tab<br/>ToAssign<br/>name: :active_tab"]
+  ui["ui<br/>PageUI"]
+  undo["undo<br/>Undo"]
+  undo_armed["undo_armed<br/>ToAssign<br/>name: :undo_pending"]
+  undo_cleared["undo_cleared<br/>ToAssign<br/>name: :undo_pending"]
+  undo_clock["undo_clock<br/>ToTimer<br/>name: :undo<br/>ms: 5000"]
+  unwishlisted_notice["unwishlisted_notice<br/>ToFlash<br/>text: Removed from wishlist"]
+  url["url<br/>ToPatch"]
+  wishlist["wishlist<br/>Wishlist"]
+  wishlist_count["wishlist_count<br/>ToAssign<br/>name: :wishlist_count"]
+  wishlist_ids["wishlist_ids<br/>ToAssign<br/>name: :wishlist_ids"]
+  wishlist_rows["wishlist_rows<br/>ToComponent<br/>id: wishlist<br/>module: WishlistPanel"]
+  wishlisted_notice["wishlisted_notice<br/>ToFlash<br/>text: Added to wishlist"]
+  add_line -->|"line → receive"| cart
+  add_line -->|"line → show"| added_notice
+  cart -->|"checkout_requested → pay"| checkout
+  cart -->|"line → toggle"| wishlist
+  cart -->|"persist → value"| persist
+  cart -->|"promo_applied → value"| promo_ok
+  cart -->|"promo_applied → show"| promo_notice
+  cart -->|"promo_rejected → value"| promo_bad
+  cart -->|"promo_rejected → show"| promo_error
+  cart -->|"removed → capture"| undo
+  cart -->|"rows → change"| cart_rows
+  cart -->|"saved → stash"| saved
+  cart -->|"saved → show"| saved_notice
+  cart -->|"summary → value"| summary
+  checkout -->|"address → value"| address
+  checkout -->|"blocked → show"| blocked_notice
+  checkout -->|"done → place"| place_order
+  checkout -->|"done → url"| go
+  checkout -->|"form → value"| address_form
+  checkout -->|"payment → value"| charge
+  checkout -->|"step → value"| step
+  checkout -->|"step → value"| url
+  lines -->|"loaded → load"| cart
+  saved -->|"count → value"| saved_count
+  saved -->|"moved → receive"| cart
+  saved -->|"moved → show"| moved_notice
+  saved -->|"rows → change"| saved_rows
+  ui -->|"tab → value"| tab
+  undo -->|"captured → value"| undo_armed
+  undo -->|"expired → confirm_removal"| cart
+  undo -->|"expired → value"| undo_cleared
+  undo -->|"restored → receive"| cart
+  undo -->|"restored → show"| restored_notice
+  undo -->|"restored → value"| undo_cleared
+  undo -->|"timer → value"| undo_clock
+  wishlist -->|"added → show"| wishlisted_notice
+  wishlist -->|"count → value"| wishlist_count
+  wishlist -->|"dropped → show"| unwishlisted_notice
+  wishlist -->|"ids → value"| wishlist_ids
+  wishlist -->|"rows → change"| wishlist_rows
+  wishlist -->|"taken → add"| add_line
+  ground((ground))
+  add_line -.->|"line_with_quantity"| ground
+  place_order -.->|"placed"| ground

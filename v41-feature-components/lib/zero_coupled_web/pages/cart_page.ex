@@ -2,22 +2,32 @@ defmodule ZeroCoupledWeb.CartPage do
   @moduledoc """
   The cart page in the shape `phx.gen.live` produces: the template places the feature instances
   and configures them; `handle_info` passes each instance's announcement on to the instance it
-  concerns and says what happened. The store's words and numbers are the attributes.
+  concerns and says what happened. The store's words and numbers are the attributes; its
+  pricing, stores and order placement are configured here once. There is no catch-all
+  `handle_info`: a message the page doesn't route crashes it, and a test sends every announced
+  port to catch a missing clause before a user does.
   """
   use ZeroCoupledWeb, :live_view
   on_mount {ZeroCoupledWeb.Paradigms.Subscribed, {ZeroCoupled.Foundation.Broadcast, :subscribe}}
-  alias ZeroCoupled.Features.{Cart, Checkout, SavedItems, Undo, Wishlist}
-  alias ZeroCoupled.Foundation.{Broadcast, LedgerGateway}
 
-  @pricing [
-    shipping: %{
-      standard: %{label: "Standard (5–7 days)", cost: 599, free_above: 5000},
-      express: %{label: "Express (2–3 days)", cost: 1299, free_above: nil},
-      overnight: %{label: "Overnight", cost: 2499, free_above: nil}
-    },
-    promo: %{"SAVE10" => 10, "SAVE20" => 20, "HALF" => 50},
-    gift_wrap_unit: 299
-  ]
+  alias ZeroCoupled.Domain.{
+    AddLine,
+    CalculateGiftWrapCost,
+    CalculateShipping,
+    PlaceOrder,
+    ValidatePromo
+  }
+
+  alias ZeroCoupled.Features.{Cart, Checkout, SavedItems, Undo, Wishlist}
+  alias ZeroCoupled.Foundation.{Broadcast, Carts, LedgerGateway, Orders, Products}
+
+  @rates %{
+    standard: %{label: "Standard (5–7 days)", cost: 599, free_above: 5000},
+    express: %{label: "Express (2–3 days)", cost: 1299, free_above: nil},
+    overnight: %{label: "Overnight", cost: 2499, free_above: nil}
+  }
+  @promo_codes %{"SAVE10" => 10, "SAVE20" => 20, "HALF" => 50}
+  @gift_wrap_unit 299
   @undo_window_ms 5_000
   @checkout_flow [
     {:address, :submit_address, :payment},
@@ -36,9 +46,21 @@ defmodule ZeroCoupledWeb.CartPage do
     {:ok,
      assign(socket,
        cart_id: cart_id,
-       pricing: @pricing,
+       pricing: %{
+         shipping: CalculateShipping.new(@rates),
+         promo: ValidatePromo.new(@promo_codes),
+         gift_wrap: CalculateGiftWrapCost.new(@gift_wrap_unit)
+       },
+       add_line: %AddLine{carts: Carts, products: Products},
+       place_order: %PlaceOrder{
+         orders: Orders,
+         carts: Carts,
+         products: Products,
+         announce: &Broadcast.stock_changed/2
+       },
        active_tab: :items,
        item_count: 0,
+       cart_empty?: true,
        saved_count: 0,
        wishlist_count: 0,
        wishlist_ids: [],
@@ -66,7 +88,7 @@ defmodule ZeroCoupledWeb.CartPage do
 
   @impl true
   def handle_info({:cart, :summary, summary}, socket),
-    do: {:noreply, assign(socket, item_count: summary.item_count)}
+    do: {:noreply, assign(socket, item_count: summary.item_count, cart_empty?: summary.empty?)}
 
   def handle_info({:cart, :removed, item}, socket),
     do: {:noreply, pass(socket, Undo.Banner, "undo", capture: item)}
@@ -133,7 +155,8 @@ defmodule ZeroCoupledWeb.CartPage do
   def handle_info(%Broadcast.Facts.StockChanged{product_id: id, stock: stock}, socket),
     do: {:noreply, pass(socket, Cart.Panel, "cart", set_stock: %{product_id: id, stock: stock})}
 
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  # the storefront topic also carries product edits, which this page doesn't show
+  def handle_info(%Broadcast.Facts.ProductSaved{}, socket), do: {:noreply, socket}
 
   defp pass(socket, module, id, input),
     do:
@@ -186,6 +209,8 @@ defmodule ZeroCoupledWeb.CartPage do
           id="cart"
           cart_id={@cart_id}
           pricing={@pricing}
+          store={Carts}
+          add_line={@add_line}
           wishlist_ids={@wishlist_ids}
           gift_wrap_label="Gift wrap ($2.99)"
           empty_text="Your cart is empty."
@@ -194,10 +219,10 @@ defmodule ZeroCoupledWeb.CartPage do
         <div class="py-4">
           <button
             phx-click="start_checkout"
-            disabled={@item_count == 0}
+            disabled={@cart_empty?}
             class={[
               "rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-4 text-sm font-semibold text-white",
-              @item_count == 0 && "opacity-50 cursor-not-allowed"
+              @cart_empty? && "opacity-50 cursor-not-allowed"
             ]}
           >
             Checkout
@@ -219,6 +244,9 @@ defmodule ZeroCoupledWeb.CartPage do
         id="checkout"
         cart_id={@cart_id}
         pricing={@pricing}
+        store={Carts}
+        stock_levels={&Products.stock_levels/1}
+        place_order={@place_order}
         flow={@checkout_flow}
         start={:address}
         url_edges={@checkout_url_edges}

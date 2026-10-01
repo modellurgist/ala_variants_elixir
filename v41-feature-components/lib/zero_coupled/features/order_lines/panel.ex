@@ -1,20 +1,32 @@
 defmodule ZeroCoupled.Features.OrderLines.Panel do
   @moduledoc """
   The bulk-order draft as a UI instance: its lines, totals and the review button, owning their
-  events and its persistence. Config: `cart_id`, `pricing`, `empty_text`. Inputs: `add: {product,
+  events and its persistence. Config: `cart_id`, `pricing` (a `Pricing`), `store` (the cart store),
+  `add_line` (an `AddLine`), `empty_text`. Inputs: `add: {product,
   quantity}`, `receive: item`, `confirm_removal: id`, `set_stock: change`. Announces `{:order,
   :summary, _}`, `{:order, :removed, item}`, `{:order, :review, summary}`.
   """
   use ZeroCoupledWeb, :live_component
   import ZeroCoupled.Catalog.Rows
+  alias ZeroCoupled.Domain.AddLine
   alias ZeroCoupled.Features.OrderLines
-  alias ZeroCoupled.Foundation.{Carts, Products}
   alias ZeroCoupledWeb.Paradigms.Instance
+
+  @doc "The ports this instance announces, as `{:order, port, payload}`."
+  def announces, do: [:summary, :removed, :review]
 
   def mount(socket), do: {:ok, stream(socket, :order_lines, [])}
 
   def update(%{add: {product, quantity}}, s),
-    do: {:ok, step(s, &OrderLines.add(&1, {persist_line(s.assigns.cart_id, product), quantity}))}
+    do:
+      {:ok,
+       step(
+         s,
+         &OrderLines.add(
+           &1,
+           {AddLine.run(s.assigns.add_line, s.assigns.cart_id, product), quantity}
+         )
+       )}
 
   def update(%{receive: item}, s), do: {:ok, step(s, &OrderLines.receive(&1, item))}
   def update(%{confirm_removal: id}, s), do: {:ok, step(s, &OrderLines.confirm_removal(&1, id))}
@@ -23,10 +35,10 @@ defmodule ZeroCoupled.Features.OrderLines.Panel do
 
   defp ensure_loaded(%{assigns: %{state: _}} = s), do: s
 
-  defp ensure_loaded(%{assigns: %{cart_id: cart_id, pricing: pricing}} = s) do
+  defp ensure_loaded(%{assigns: %{cart_id: cart_id, pricing: pricing, store: store}} = s) do
     s
     |> assign(state: OrderLines.new(cart_id: cart_id, pricing: pricing))
-    |> step(&OrderLines.load(&1, Carts.list_items(cart_id)))
+    |> step(&OrderLines.load(&1, store.list_items(cart_id)))
   end
 
   def handle_event("set_line_quantity", %{"item-id" => id, "quantity" => q}, s),
@@ -49,16 +61,11 @@ defmodule ZeroCoupled.Features.OrderLines.Panel do
   defp land(s, {:persist, change}),
     do:
       (
-        Carts.apply_change(change)
+        s.assigns.store.apply_change(change)
         s
       )
 
   defp land(s, out), do: Instance.announce(s, :order, out)
-
-  defp persist_line(cart_id, product) do
-    Carts.add_item(cart_id, Products.get!(product.id))
-    cart_id |> Carts.list_items() |> Enum.find(&(&1.product.id == product.id))
-  end
 
   defp int(str), do: String.to_integer(str)
 

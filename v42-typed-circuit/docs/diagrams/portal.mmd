@@ -1,0 +1,51 @@
+flowchart LR
+  add_line["add_line<br/>AddLine"]
+  added_notice["added_notice<br/>ToFlash<br/>text: Added to order"]
+  blocked_notice["blocked_notice<br/>ToFlash"]
+  catalog["catalog<br/>PortalCatalog"]
+  catalog_rows["catalog_rows<br/>ToComponent<br/>id: catalog<br/>module: CatalogPanel"]
+  flow["flow<br/>PortalSubmit"]
+  lines["lines<br/>FromStore<br/>Carts.list_items/1"]
+  order["order<br/>OrderLines"]
+  order_id["order_id<br/>ToAssign<br/>name: :order_id"]
+  order_rows["order_rows<br/>ToComponent<br/>id: order<br/>module: OrderPanel"]
+  persist["persist<br/>ToStore<br/>Carts.apply_change/1"]
+  place_order["place_order<br/>PlaceOrder"]
+  po["po<br/>ToAssign<br/>name: :po"]
+  po_form["po_form<br/>ToForm<br/>name: :po_form"]
+  products["products<br/>FromStore<br/>Products.list/0"]
+  step["step<br/>ToAssign<br/>name: :step"]
+  submitted_notice["submitted_notice<br/>ToFlash<br/>text: Order submitted"]
+  summary["summary<br/>ToAssign<br/>name: :summary"]
+  undo["undo<br/>Undo"]
+  undo_armed["undo_armed<br/>ToAssign<br/>name: :undo_pending"]
+  undo_cleared["undo_cleared<br/>ToAssign<br/>name: :undo_pending"]
+  undo_clock["undo_clock<br/>ToTimer<br/>name: :undo<br/>ms: 5000"]
+  url["url<br/>ToPatch"]
+  add_line -->|"line_with_quantity → add"| order
+  add_line -->|"line_with_quantity → show"| added_notice
+  catalog -->|"requested → add_with_quantity"| add_line
+  catalog -->|"rows → change"| catalog_rows
+  flow -->|"approved → value"| po
+  flow -->|"approved → place"| place_order
+  flow -->|"blocked → show"| blocked_notice
+  flow -->|"form → value"| po_form
+  flow -->|"reference → value"| order_id
+  flow -->|"reference → show"| submitted_notice
+  flow -->|"step → value"| step
+  flow -->|"step → value"| url
+  lines -->|"loaded → load"| order
+  order -->|"persist → value"| persist
+  order -->|"removed → capture"| undo
+  order -->|"rows → change"| order_rows
+  order -->|"summary → value"| summary
+  place_order -->|"placed → complete"| flow
+  products -->|"loaded → load"| catalog
+  undo -->|"captured → value"| undo_armed
+  undo -->|"expired → confirm_removal"| order
+  undo -->|"expired → value"| undo_cleared
+  undo -->|"restored → receive"| order
+  undo -->|"restored → value"| undo_cleared
+  undo -->|"timer → value"| undo_clock
+  ground((ground))
+  add_line -.->|"line"| ground

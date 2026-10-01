@@ -9,6 +9,9 @@ defmodule ZeroCoupled.Features.Undo.Banner do
   alias ZeroCoupled.Features.Undo
   alias ZeroCoupledWeb.Paradigms.Instance
 
+  @doc "The ports this instance announces, as `{:undo, port, payload}`."
+  def announces, do: [:restored, :expired]
+
   def mount(socket), do: {:ok, assign(socket, state: Undo.new([]), timer: nil)}
   def update(%{capture: item}, s), do: {:ok, step(s, &Undo.capture(&1, item))}
   def update(%{expire: id}, s), do: {:ok, step(s, &Undo.expire(&1, id))}

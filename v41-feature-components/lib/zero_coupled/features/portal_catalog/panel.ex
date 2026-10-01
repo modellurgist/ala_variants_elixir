@@ -1,10 +1,12 @@
 defmodule ZeroCoupled.Features.PortalCatalog.Panel do
-  @moduledoc "The orderable products as a UI instance, owning the add forms. Input: `set_stock: change`. Announces `{:catalog, :requested, {product, quantity}}`."
+  @moduledoc "The orderable products as a UI instance, owning the add forms. Config: `products` (a read function). Input: `set_stock: change`. Announces `{:catalog, :requested, {product, quantity}}`."
   use ZeroCoupledWeb, :live_component
   import ZeroCoupled.Catalog.Rows
   alias ZeroCoupled.Features.PortalCatalog
-  alias ZeroCoupled.Foundation.Products
   alias ZeroCoupledWeb.Paradigms.Instance
+
+  @doc "The ports this instance announces, as `{:catalog, port, payload}`."
+  def announces, do: [:requested]
 
   def mount(socket),
     do: {:ok, socket |> stream(:portal_products, []) |> assign(state: PortalCatalog.new([]))}
@@ -15,7 +17,7 @@ defmodule ZeroCoupled.Features.PortalCatalog.Panel do
   defp ensure_loaded(%{assigns: %{loaded: true}} = s), do: s
 
   defp ensure_loaded(s),
-    do: s |> assign(loaded: true) |> step(&PortalCatalog.load(&1, Products.list()))
+    do: s |> assign(loaded: true) |> step(&PortalCatalog.load(&1, s.assigns.products.()))
 
   def handle_event("add_to_order", %{"product-id" => id, "quantity" => q}, s),
     do:

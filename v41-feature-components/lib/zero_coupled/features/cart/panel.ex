@@ -1,16 +1,19 @@
 defmodule ZeroCoupled.Features.Cart.Panel do
   @moduledoc """
   The cart as a UI instance: its lines, totals, shipping and promo, owning their events and its
-  persistence. Config: `cart_id`, `pricing`, `gift_wrap_label`, `empty_text`, `invalid_promo_text`,
-  `wishlist_ids`. Inputs by `send_update`: `receive: item`, `confirm_removal: id`,
+  persistence. Config: `cart_id`, `pricing` (a `Pricing`), `store` (the cart store), `add_line`
+  (an `AddLine`), `gift_wrap_label`, `empty_text`, `invalid_promo_text`, `wishlist_ids`. Inputs by `send_update`: `receive: item`, `confirm_removal: id`,
   `set_stock: change`, `add_product: product`. Announces `{:cart, port, payload}` for every port it
   doesn't show itself: `:summary`, `:removed`, `:saved`, `:line`, `:promo_applied`, `:promo_rejected`.
   """
   use ZeroCoupledWeb, :live_component
   import ZeroCoupled.Catalog.Rows
+  alias ZeroCoupled.Domain.AddLine
   alias ZeroCoupled.Features.Cart
-  alias ZeroCoupled.Foundation.{Carts, Products}
   alias ZeroCoupledWeb.Paradigms.Instance
+
+  @doc "The ports this instance announces to whoever mounted it, as `{:cart, port, payload}`."
+  def announces, do: [:summary, :removed, :saved, :line, :promo_applied, :promo_rejected]
 
   def mount(socket), do: {:ok, socket |> stream(:cart_items, []) |> assign(promo_error: nil)}
 
@@ -19,16 +22,18 @@ defmodule ZeroCoupled.Features.Cart.Panel do
   def update(%{set_stock: change}, s), do: {:ok, step(s, &Cart.set_stock(&1, change))}
 
   def update(%{add_product: product}, s),
-    do: {:ok, step(s, &Cart.receive(&1, persist_line(s.assigns.cart_id, product)))}
+    do:
+      {:ok,
+       step(s, &Cart.receive(&1, AddLine.run(s.assigns.add_line, s.assigns.cart_id, product)))}
 
   def update(assigns, s), do: {:ok, s |> assign(assigns) |> ensure_loaded()}
 
   defp ensure_loaded(%{assigns: %{state: _}} = s), do: s
 
-  defp ensure_loaded(%{assigns: %{cart_id: cart_id, pricing: pricing}} = s) do
+  defp ensure_loaded(%{assigns: %{cart_id: cart_id, pricing: pricing, store: store}} = s) do
     s
     |> assign(state: Cart.new(cart_id: cart_id, pricing: pricing))
-    |> step(&Cart.load(&1, Carts.list_items(cart_id)))
+    |> step(&Cart.load(&1, store.list_items(cart_id)))
   end
 
   def handle_event("update_quantity", %{"item-id" => id, "delta" => d}, s),
@@ -64,7 +69,7 @@ defmodule ZeroCoupled.Features.Cart.Panel do
   defp land(s, {:persist, change}),
     do:
       (
-        Carts.apply_change(change)
+        s.assigns.store.apply_change(change)
         s
       )
 
@@ -75,11 +80,6 @@ defmodule ZeroCoupled.Features.Cart.Panel do
     do: s |> assign(promo_error: s.assigns.invalid_promo_text) |> Instance.announce(:cart, out)
 
   defp land(s, out), do: Instance.announce(s, :cart, out)
-
-  defp persist_line(cart_id, product) do
-    Carts.add_item(cart_id, Products.get!(product.id))
-    cart_id |> Carts.list_items() |> Enum.find(&(&1.product.id == product.id))
-  end
 
   defp int(str), do: String.to_integer(str)
 

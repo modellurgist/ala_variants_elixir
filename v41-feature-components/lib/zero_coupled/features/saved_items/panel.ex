@@ -5,6 +5,9 @@ defmodule ZeroCoupled.Features.SavedItems.Panel do
   alias ZeroCoupled.Features.SavedItems
   alias ZeroCoupledWeb.Paradigms.Instance
 
+  @doc "The ports this instance announces, as `{:saved, port, payload}`."
+  def announces, do: [:count, :moved]
+
   def mount(socket),
     do: {:ok, socket |> stream(:saved_items, []) |> assign(state: SavedItems.new([]), count: 0)}
 

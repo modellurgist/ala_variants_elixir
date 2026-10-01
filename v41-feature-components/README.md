@@ -6,9 +6,37 @@ stream, buttons and store writes; the page's template places and configures the 
 its `handle_info` clauses pass each instance's announcement on to the instance it concerns and say
 what happened. The real-size build of toy T24.
 
-**Score:** `ala_lint` 98/A default, 97/A strict, 97/A super-strict on the family layer map
-(V39: 97/97/96; V40: 98/97/96; V35: 93/93/91; re-scored 2026-09-29). No R1 finding, no R11 finding on either page.
-**80 tests, 0 failures.**
+**Score:** `ala_lint` 98/A default, 97/A strict, 97/A super-strict on the family layer map, before
+and after the 2026-09-30 revision below (V39: 97/97/95; V40: 98/97/95; V35: 93/93/91). No R1
+finding, no R11 finding on either page. **83 tests, 0 failures.**
+
+## Revision (2026-09-30): V44's changes, applied in place
+
+A consolidated design sketch (V44) takes V41's shape and adds what the
+other variants learned. Applied here:
+
+1. **Domain configured once, configuration first.** `CalculateShipping`, `ValidatePromo`,
+   `CalculateGiftWrapCost` and `VolumeTier` are structs built once by the page
+   (`CalculateShipping.new(@rates)`) and called with the instance first. `ShippingInfo` folded into
+   `CalculateShipping` (`options/1`, `label/2`), since both read the same rate table. The `Cart`
+   aggregate holds a map of these instances instead of a config map it destructured.
+2. **Store work in domain abstractions.** `PlaceOrder` (create the order, take the stock, announce
+   each new level) and `AddLine` (store a product line and return it) replace the loop in the
+   checkout panel, the order call in the portal's submit panel, and the `persist_line/2` helper two
+   panels duplicated.
+3. **Stores as configuration.** Panels no longer name `Carts`, `Products` or `Orders`; the page
+   passes `store`, `stock_levels`, `products`, `add_line` and `place_order` as attributes.
+4. **Declared ports.** Every feature has `ports/0`; every panel has `announces/0`.
+5. **No catch-all `handle_info`.** Both pages lost `handle_info(_msg, socket)`; each now ignores the
+   one broadcast it doesn't use (`ProductSaved`) explicitly. `test/zero_coupled_web/pages/wiring_test.exs`
+   sends every announced port, the undo timer, and both broadcasts to each page and fails on a
+   missing clause. Its first run found a declaration error (the cart panel listed a port it never
+   announces); a seeded missing clause was caught.
+6. **The checkout button** is disabled by the cart's announced `empty?`, not a comparison in the template.
+
+A first attempt put the instances behind a `Pricing` façade; four of its functions were pure
+pass-throughs, and `--strict` fell to 96. Removing the façade restored 97. The score otherwise
+doesn't move: the linter already found nothing on these pages. What changed is what it can't see.
 
 ## The shape
 

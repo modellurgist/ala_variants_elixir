@@ -2,22 +2,21 @@ defmodule ZeroCoupledWeb.PortalPage do
   @moduledoc """
   The B2B bulk-order portal: the same shape as the cart page over the same aggregate, domain
   rules and undo instance, with its own instances, pricing and flow. Its draft is a separate
-  session cart.
+  session cart. No catch-all `handle_info`, as on the cart page.
   """
   use ZeroCoupledWeb, :live_view
   on_mount {ZeroCoupledWeb.Paradigms.Subscribed, {ZeroCoupled.Foundation.Broadcast, :subscribe}}
   import ZeroCoupled.Catalog.Rows, only: [milestones: 1]
+  alias ZeroCoupled.Domain.{AddLine, CalculateShipping, PlaceOrder, VolumeTier}
   alias ZeroCoupled.Features.{OrderLines, PortalCatalog, PortalSubmit, Undo}
-  alias ZeroCoupled.Foundation.Broadcast
+  alias ZeroCoupled.Foundation.{Broadcast, Carts, Orders, Products}
 
-  @pricing [
-    shipping: %{
-      standard: %{label: "Standard (5–7 days)", cost: 599, free_above: 5000},
-      express: %{label: "Express (2–3 days)", cost: 1299, free_above: nil},
-      overnight: %{label: "Overnight", cost: 2499, free_above: nil}
-    },
-    volume_tiers: [{200_000, 10, "10% volume discount"}, {50_000, 5, "5% volume discount"}]
-  ]
+  @rates %{
+    standard: %{label: "Standard (5–7 days)", cost: 599, free_above: 5000},
+    express: %{label: "Express (2–3 days)", cost: 1299, free_above: nil},
+    overnight: %{label: "Overnight", cost: 2499, free_above: nil}
+  }
+  @volume_tiers [{200_000, 10, "10% volume discount"}, {50_000, 5, "5% volume discount"}]
   @undo_window_ms 5_000
   @flow [
     {:lines, :go_review, :review},
@@ -35,7 +34,9 @@ defmodule ZeroCoupledWeb.PortalPage do
     {:ok,
      assign(socket,
        cart_id: cart_id,
-       pricing: @pricing,
+       pricing: %{shipping: CalculateShipping.new(@rates), volume: VolumeTier.new(@volume_tiers)},
+       add_line: %AddLine{carts: Carts, products: Products},
+       place_order: %PlaceOrder{orders: Orders},
        step: :lines,
        requested_step: :lines,
        summary: nil,
@@ -94,7 +95,8 @@ defmodule ZeroCoupledWeb.PortalPage do
      |> pass(PortalCatalog.Panel, "catalog", set_stock: change)}
   end
 
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  # the storefront topic also carries product edits, which this page doesn't show
+  def handle_info(%Broadcast.Facts.ProductSaved{}, socket), do: {:noreply, socket}
 
   defp pass(socket, module, id, input),
     do:
@@ -127,14 +129,17 @@ defmodule ZeroCoupledWeb.PortalPage do
           id="order"
           cart_id={@cart_id}
           pricing={@pricing}
+          store={Carts}
+          add_line={@add_line}
           empty_text="No lines yet. Add products below."
         />
-        <.live_component module={PortalCatalog.Panel} id="catalog" />
+        <.live_component module={PortalCatalog.Panel} id="catalog" products={&Products.list/0} />
       </div>
       <.live_component
         module={PortalSubmit.Panel}
         id="submit"
         cart_id={@cart_id}
+        place_order={@place_order}
         flow={@flow}
         start={:lines}
         url_edges={@url_edges}
