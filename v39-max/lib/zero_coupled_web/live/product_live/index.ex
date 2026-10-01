@@ -23,7 +23,11 @@ defmodule ZeroCoupledWeb.ProductLive.Index do
         cart_id: session[CartSession.cart_key()],
         stock_status: StockStatus.new(low_at: StoreConfig.low_stock_at()),
         stock_labels: @stock_labels,
-        add_line: %AddLine{carts: Carts, products: Products}
+        add_line: %AddLine{
+          carts: Carts,
+          products: Products,
+          cart_id: session[CartSession.cart_key()]
+        }
       )
       |> stream(:products, Products.list())
 
@@ -80,7 +84,7 @@ defmodule ZeroCoupledWeb.ProductLive.Index do
   end
 
   def handle_event("add_to_cart", %{"id" => id}, socket) do
-    AddLine.run(socket.assigns.add_line, socket.assigns.cart_id, %{id: String.to_integer(id)})
+    AddLine.run(socket.assigns.add_line, %{id: String.to_integer(id)})
     Process.send_after(self(), :clear_flash, @flash_ms)
     {:noreply, put_flash(socket, :info, "Added to cart")}
   end

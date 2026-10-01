@@ -25,9 +25,7 @@ defmodule ZeroCoupled.Features.Cart.Panel do
   def update(%{set_stock: change}, s), do: {:ok, step(s, &Cart.set_stock(&1, change))}
 
   def update(%{add_product: product}, s),
-    do:
-      {:ok,
-       step(s, &Cart.receive(&1, AddLine.run(s.assigns.add_line, s.assigns.cart_id, product)))}
+    do: {:ok, step(s, &Cart.receive(&1, AddLine.run(s.assigns.add_line, product)))}
 
   def update(assigns, s), do: {:ok, s |> assign(assigns) |> ensure_loaded()}
 

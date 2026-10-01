@@ -54,4 +54,23 @@ defmodule ZeroCoupled.Catalog.Panes do
     </nav>
     """
   end
+
+  attr :id, :string, required: true
+  attr :stream, :any, required: true, doc: "a LiveView stream (`@streams.name`)"
+  attr :class, :any, default: nil
+
+  slot :inner_block,
+    required: true,
+    doc: "one entry, given `{dom_id, item}`; its root element takes `id={dom_id}`"
+
+  @doc "A stream's container, rendering each entry through the slot, so a page iterates nothing itself."
+  def stream_list(assigns) do
+    ~H"""
+    <div id={@id} phx-update="stream" class={@class}>
+      <%= for entry <- @stream do %>
+        {render_slot(@inner_block, entry)}
+      <% end %>
+    </div>
+    """
+  end
 end

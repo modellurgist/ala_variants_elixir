@@ -7,12 +7,12 @@ defmodule GoodDealWeb.CartLive.CartState do
     :cart_id,
     :promo_code,
     :promo_percentage,
-    :shipping_method,
+    shipping_method: :standard,
     # calibration injected by the composition (shipping tiers, gift-wrap fee);
     # never read from global config here — it flows down from the app layer.
     shipping_methods: [],
     gift_wrap_cents: 0,
-    gift_wrap?: false,
+    gift_wrapped: MapSet.new(),
     items: [],
     total: Money.new(0),
     subtotal: Money.new(0),
@@ -40,7 +40,14 @@ defmodule GoodDealWeb.CartLive.CartState do
 
     method = Shipping.find(cart.shipping_methods, cart.shipping_method)
     ship = Shipping.cost(method, discounted)
-    gift = if cart.gift_wrap?, do: Pricing.gift_wrap_total(count, cart.gift_wrap_cents), else: 0
+
+    wrapped =
+      cart.items
+      |> Enum.filter(&MapSet.member?(cart.gift_wrapped, &1.id))
+      |> Enum.map(& &1.quantity)
+      |> Enum.sum()
+
+    gift = Pricing.gift_wrap_total(wrapped, cart.gift_wrap_cents)
 
     %{
       cart

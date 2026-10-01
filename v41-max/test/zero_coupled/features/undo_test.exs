@@ -23,4 +23,9 @@ defmodule ZeroCoupled.Features.UndoTest do
     assert {_, []} = Undo.expire(undo, 7)
     assert {_, [expired: 8]} = Undo.expire(undo, 8)
   end
+
+  test "a second removal makes the first final" do
+    {undo, _} = Undo.capture(Undo.new([]), %{id: 1})
+    assert {_, [expired: 1, captured: %{id: 2}]} = Undo.capture(undo, %{id: 2})
+  end
 end

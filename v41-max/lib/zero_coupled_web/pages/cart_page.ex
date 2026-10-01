@@ -99,7 +99,7 @@ defmodule ZeroCoupledWeb.CartPage do
          promo: ValidatePromo.new(@promo_codes),
          gift_wrap: CalculateGiftWrapCost.new(@gift_wrap_unit)
        },
-       add_line: %AddLine{carts: Carts, products: Products},
+       add_line: %AddLine{carts: Carts, products: Products, cart_id: cart_id},
        line_items: BuildLineItems.new(currency: StoreConfig.currency()),
        form_messages: %{postal_code: "must be 4–10 digits"},
        place_order: %PlaceOrder{

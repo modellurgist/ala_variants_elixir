@@ -23,4 +23,18 @@ defmodule GoodDealWeb.CartLive.Helpers do
         else: item
     end)
   end
+
+  @doc "A displayed cart row: the stored line plus the flags the page shows beside it."
+  def row(item, cart, wishlist_ids) do
+    %{
+      id: item.id,
+      product: item.product,
+      quantity: item.quantity,
+      gift_wrapped: MapSet.member?(cart.gift_wrapped, item.id),
+      wishlisted: item.product.id in wishlist_ids
+    }
+  end
+
+  def toggle(set, id),
+    do: if(MapSet.member?(set, id), do: MapSet.delete(set, id), else: MapSet.put(set, id))
 end

@@ -72,7 +72,7 @@ defmodule ZeroCoupledWeb.PortalPage do
          stock_status: StockStatus.new(low_at: StoreConfig.low_stock_at())
        },
        stock_status: StockStatus.new(low_at: StoreConfig.low_stock_at()),
-       add_line: %AddLine{carts: Carts, products: Products},
+       add_line: %AddLine{carts: Carts, products: Products, cart_id: cart_id},
        place_order: %PlaceOrder{orders: Orders},
        step: :lines,
        requested_step: :lines,

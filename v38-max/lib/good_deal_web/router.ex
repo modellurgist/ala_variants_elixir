@@ -9,6 +9,7 @@ defmodule GoodDealWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug GoodDealWeb.Plugs.SessionCart
+    plug GoodDealWeb.Plugs.SessionCart, key: :portal_cart_id
   end
 
   pipeline :api do
@@ -27,7 +28,11 @@ defmodule GoodDealWeb.Router do
     live "/products/:id", ProductLive.Show, :show
     live "/products/:id/show/edit", ProductLive.Show, :edit
     live "/cart", CartLive.Show, :index
+    live "/cart/checkout", CartLive.Show, :checkout
+    live "/cart/checkout/:step", CartLive.Show, :checkout
     live "/cart/success", CartLive.Success, :index
+    live "/portal", PortalLive.Show, :index
+    live "/portal/:step", PortalLive.Show, :index
   end
 
   # Other scopes may use custom stacks.

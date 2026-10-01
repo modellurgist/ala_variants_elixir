@@ -75,4 +75,10 @@ defmodule GoodDeal.Foundation.Carts do
     |> Cart.changeset(%{status: :completed})
     |> Repo.update()
   end
+
+  @doc "Apply a change to a stored line: `{:quantity, cart_id, item_id, qty}` or `{:removed, cart_id, item_id}`."
+  def apply_change({:quantity, cart_id, item_id, quantity}),
+    do: update_quantity(cart_id, item_id, quantity)
+
+  def apply_change({:removed, cart_id, item_id}), do: remove_item(cart_id, item_id)
 end

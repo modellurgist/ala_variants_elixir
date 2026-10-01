@@ -27,7 +27,7 @@ defmodule ZeroCoupled.Features.OrderLines.Panel do
          s,
          &OrderLines.add(
            &1,
-           {AddLine.run(s.assigns.add_line, s.assigns.cart_id, product), quantity}
+           {AddLine.run(s.assigns.add_line, product), quantity}
          )
        )}
 

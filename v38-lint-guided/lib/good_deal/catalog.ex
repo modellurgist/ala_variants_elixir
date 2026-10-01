@@ -25,6 +25,9 @@ defmodule GoodDeal.Catalog do
   @doc "Promo codes this store honours, mapping code to percent off."
   def promo_codes, do: %{"SAVE10" => 10, "SAVE20" => 20, "HALF" => 50}
 
+  @doc "Portal volume pricing, highest tier first: `{minimum_subtotal_cents, percent, label}`."
+  def volume_tiers, do: [{200_000, 10, "10% volume discount"}, {50_000, 5, "5% volume discount"}]
+
   @doc "At or below this stock count, an item counts as low stock."
   def low_stock_threshold, do: 5
 end

@@ -19,16 +19,15 @@ defmodule ZeroCoupledWeb.PortalLive.PortalView do
           />
           <section>
             <h2 class="text-lg font-semibold pb-2">{@texts.order.heading}</h2>
-            <div id="order_lines" phx-update="stream">
+            <.stream_list :let={{dom_id, row}} id="order_lines" stream={@streams.order_lines}>
               <.order_line_row
-                :for={{dom_id, row} <- @streams.order_lines}
                 id={dom_id}
                 row={row}
                 on_quantity="set_line_quantity"
                 on_remove="remove_line"
                 t={@texts.order.row}
               />
-            </div>
+            </.stream_list>
             <.none count={@summary.item_count} text={@texts.order.empty} />
             <.order_summary summary={@summary} t={@texts.order.summary} />
             <.primary_button event="go_review" disabled={@summary.empty?}>
@@ -37,15 +36,14 @@ defmodule ZeroCoupledWeb.PortalLive.PortalView do
           </section>
           <section>
             <h2 class="text-lg font-semibold pb-2">{@texts.catalog.heading}</h2>
-            <div id="portal_products" phx-update="stream">
+            <.stream_list :let={{dom_id, row}} id="portal_products" stream={@streams.portal_products}>
               <.catalog_row
-                :for={{dom_id, row} <- @streams.portal_products}
                 id={dom_id}
                 row={row}
                 on_add="add_to_order"
                 t={@texts.catalog.row}
               />
-            </div>
+            </.stream_list>
           </section>
         </div>
       </.only_on>

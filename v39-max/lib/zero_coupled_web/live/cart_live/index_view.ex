@@ -22,9 +22,8 @@ defmodule ZeroCoupledWeb.CartLive.IndexView do
       </.tabs>
 
       <.pane current={@active_tab} name={:items}>
-        <div id="cart_items" phx-update="stream">
+        <.stream_list :let={{dom_id, row}} id="cart_items" stream={@streams.cart_items}>
           <.cart_item_row
-            :for={{dom_id, row} <- @streams.cart_items}
             id={dom_id}
             row={row}
             wishlist_ids={@wishlist_ids}
@@ -36,34 +35,32 @@ defmodule ZeroCoupledWeb.CartLive.IndexView do
             on_save="save_for_later"
             on_wishlist="toggle_wishlist"
           />
-        </div>
+        </.stream_list>
         <.none count={@summary.item_count} text={@texts.cart.empty} />
       </.pane>
 
       <.pane current={@active_tab} name={:saved}>
-        <div id="saved_items" phx-update="stream">
+        <.stream_list :let={{dom_id, row}} id="saved_items" stream={@streams.saved_items}>
           <.saved_row
-            :for={{dom_id, row} <- @streams.saved_items}
             id={dom_id}
             row={row}
             t={@texts.saved.row}
             on_move="move_to_cart"
           />
-        </div>
+        </.stream_list>
         <.none count={@saved_count} text={@texts.saved.empty} />
       </.pane>
 
       <.pane current={@active_tab} name={:wishlist}>
-        <div id="wishlist_products" phx-update="stream">
+        <.stream_list :let={{dom_id, row}} id="wishlist_products" stream={@streams.wishlist_products}>
           <.wishlist_row
-            :for={{dom_id, row} <- @streams.wishlist_products}
             id={dom_id}
             row={row}
             t={@texts.wishlist.row}
             on_add="add_wishlisted_to_cart"
             on_remove="remove_wishlist"
           />
-        </div>
+        </.stream_list>
         <.none count={@wishlist_count} text={@texts.wishlist.empty} />
       </.pane>
 

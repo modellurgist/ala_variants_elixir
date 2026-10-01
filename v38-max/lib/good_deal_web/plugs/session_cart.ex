@@ -1,10 +1,9 @@
 defmodule GoodDealWeb.Plugs.SessionCart do
   @moduledoc """
-  Guarantees the connection carries a usable cart. On every request it asks the
-  Carts context for an open cart id (reusing the session's when it is still open,
-  minting one otherwise) and writes the result back to the session. The
-  open-or-mint decision lives in `Carts.ensure_open/1`; this plug is just the
-  wire between the session and that context.
+  Guarantees the connection carries a usable cart under one session key. On every
+  request it asks the Carts context for an open cart id (reusing the session's when
+  it is still open, minting one otherwise) and writes the result back. The router
+  plugs it once per key: the storefront cart and the portal's draft.
   """
   @behaviour Plug
 
@@ -12,11 +11,11 @@ defmodule GoodDealWeb.Plugs.SessionCart do
   alias GoodDealWeb.CartSession
 
   @impl true
-  def init(default), do: default
+  def init(opts), do: Keyword.get(opts, :key, CartSession.cart_key())
 
   @impl true
-  def call(conn, _config) do
-    cart_id = Carts.ensure_open(CartSession.current(conn))
-    CartSession.put(conn, cart_id)
+  def call(conn, key) do
+    cart_id = Carts.ensure_open(CartSession.current(conn, key))
+    CartSession.put(conn, key, cart_id)
   end
 end

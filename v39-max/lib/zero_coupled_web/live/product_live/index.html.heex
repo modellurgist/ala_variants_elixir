@@ -7,13 +7,13 @@
   </:actions>
 </.header>
 
-<div
+<.stream_list
+  :let={{dom_id, product}}
   class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-12 p-12 max-w-7xl mx-auto"
   id="products"
-  phx-update="stream"
+  stream={@streams.products}
 >
   <div
-    :for={{dom_id, product} <- @streams.products}
     id={dom_id}
     class="flex flex-col bg-white hover:bg-gray-100 cursor-pointer border border-gray-400 shadow rounded-lg"
     phx-click={JS.navigate(~p"/products/#{product}")}
@@ -46,7 +46,7 @@
       </div>
     </div>
   </div>
-</div>
+</.stream_list>
 
 <.only_on current={@live_action} name={:new}>
   <.modal id="product-modal" show on_cancel={JS.patch(~p"/products")}>

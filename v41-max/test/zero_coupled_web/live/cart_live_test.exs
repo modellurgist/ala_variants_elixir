@@ -122,6 +122,21 @@ defmodule ZeroCoupledWeb.CartLiveTest do
       refute Carts.list_items(cart.id) |> Enum.any?(&(&1.id == item_a.id))
     end
 
+    test "a second removal makes the first final; only the latest can be undone", %{conn: conn} do
+      %{lv: lv, cart: cart, item_a: item_a, product_a: a, product_b: b} = open_cart(conn)
+      item_b = Carts.list_items(cart.id) |> Enum.find(&(&1.product.id == b.id))
+
+      click(lv, "remove_item", item_a.id)
+      click(lv, "remove_item", item_b.id)
+      render(lv)
+      refute Carts.list_items(cart.id) |> Enum.any?(&(&1.id == item_a.id))
+
+      lv |> element("[phx-click=undo_remove]") |> render_click()
+      html = render(lv)
+      assert html =~ b.name
+      refute html =~ a.name
+    end
+
     test "toggle gift wrap adds a gift-wrap line to the summary", %{conn: conn} do
       %{lv: lv, item_a: item_a} = open_cart(conn)
       assert click(lv, "toggle_gift_wrap", item_a.id) =~ "Gift wrap"

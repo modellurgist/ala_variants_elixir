@@ -9,7 +9,7 @@ config :good_deal, GoodDeal.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "good_deal_test#{System.get_env("MIX_TEST_PARTITION")}",
+  database: "good_deal_v38_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 10
 

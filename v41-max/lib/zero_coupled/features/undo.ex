@@ -19,6 +19,10 @@ defmodule ZeroCoupled.Features.Undo do
   def new(_opts), do: %__MODULE__{}
   def pending?(%__MODULE__{pending: p}), do: p != nil
 
+  @doc "Hold a removed line. A line already held has its removal made final: only the latest is undoable."
+  def capture(%__MODULE__{pending: %{id: held}} = undo, item),
+    do: {%{undo | pending: item}, [expired: held, captured: item]}
+
   def capture(%__MODULE__{} = undo, item),
     do: {%{undo | pending: item}, [captured: item]}
 
