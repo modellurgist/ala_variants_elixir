@@ -148,7 +148,17 @@ defmodule GoodDealWeb.Stories.CheckOut do
         </div>
       </.only_on>
       <.only_on current={@story.view.step} name={:processing}>
-        <div class="flex items-center gap-3 text-zinc-500 py-6">{@t.processing}</div>
+        <div class="flex items-center gap-3 text-zinc-500 py-6">
+          <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+          {@t.processing}
+        </div>
       </.only_on>
       <.only_on current={@story.view.step} name={:error}>
         <div class="space-y-3">
