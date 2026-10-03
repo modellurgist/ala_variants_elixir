@@ -9,37 +9,37 @@
 
 <.stream_list
   :let={{dom_id, product}}
-  class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-12 p-12 max-w-7xl mx-auto"
+  class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
   id="products"
   stream={@streams.products}
 >
   <div
     id={dom_id}
-    class="flex flex-col bg-white hover:bg-gray-100 cursor-pointer border border-gray-400 shadow rounded-lg"
+    class="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     phx-click={JS.navigate(~p"/products/#{product}")}
   >
-    <img
-      class="grow p-6 object-contain"
-      src={product.thumbnail}
-      title={product.name}
-      alt={product.name}
-    />
-    <div class="px-6 py-4 border-t border-gray-400">
-      <h3 class="text-lg leading-6 font-medium text-gray-900 pb-2">
-        {product.name}
-      </h3>
-      <p class="text-sm text-gray-500">{product.description}</p>
+    <div class="aspect-square bg-stone-100 p-8">
+      <img
+        class="h-full w-full rounded-xl object-cover"
+        src={product.thumbnail}
+        title={product.name}
+        alt={product.name}
+      />
     </div>
-    <div class="px-6 py-4 border-t border-gray-400 flex items-center gap-2">
-      <.stock_indicator stock={product.stock} rule={@stock_rule} labels={@stock_labels} />
-    </div>
-    <div class="p-6 py-4 border-t border-gray-400 text-xl">
-      <div class="flex flex-col items-left">
-        {Money.new(product.amount)}
+    <div class="flex flex-1 flex-col gap-3 p-5">
+      <div>
+        <h3 class="font-semibold text-stone-900">{product.name}</h3>
+        <p class="line-clamp-2 pt-1 text-sm text-stone-500">{product.description}</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <.stock_indicator stock={product.stock} rule={@stock_rule} labels={@stock_labels} />
+      </div>
+      <div class="mt-auto flex items-center justify-between pt-2">
+        <span class="text-lg font-semibold tabular-nums">{Money.new(product.amount)}</span>
         <button
           phx-click="add_to_cart"
           phx-value-id={product.id}
-          class="focus:outline-none focus:shadow-outline text-sm bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 mt-2 rounded"
+          class="rounded-lg bg-brand-700 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-800"
         >
           Add to Cart
         </button>

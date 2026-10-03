@@ -157,11 +157,13 @@ defmodule GoodDealWeb.Stories.EditCart do
       event="apply_promo"
       t={@t}
     />
-    <div class="py-4">
-      <.primary_button event="start_checkout" disabled={@story.view.summary.empty?}>
-        {@t.checkout} · {@story.view.summary.total}
-      </.primary_button>
-    </div>
+    <.primary_button
+      event="start_checkout"
+      disabled={@story.view.summary.empty?}
+      class="mt-6 w-full"
+    >
+      {@t.checkout} · {@story.view.summary.total}
+    </.primary_button>
     """
   end
 end

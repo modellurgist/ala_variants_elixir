@@ -72,8 +72,10 @@ defmodule ZeroCoupled.State.PortalSubmit.Panel do
 
   def render(%{step: :review} = assigns) do
     ~H"""
-    <div class="space-y-4 max-w-lg">
-      <.order_summary summary={@summary} t={@t.summary} />
+    <div class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm max-w-lg">
+      <div class="mb-6">
+        <.order_summary summary={@summary} t={@t.summary} />
+      </div>
       <.simple_form
         for={@po_form}
         phx-change="validate_po"
@@ -87,7 +89,7 @@ defmodule ZeroCoupled.State.PortalSubmit.Panel do
             type="button"
             phx-click="edit_lines"
             phx-target={@myself}
-            class="text-sm text-zinc-500 underline"
+            class="text-sm font-medium text-stone-500 hover:text-stone-800"
           >
             {@t.back}
           </button>
@@ -100,12 +102,12 @@ defmodule ZeroCoupled.State.PortalSubmit.Panel do
 
   def render(%{step: :submitted} = assigns) do
     ~H"""
-    <div class="py-10 space-y-2">
-      <h2 class="text-2xl font-semibold">{@t.submitted}</h2>
-      <p class="text-zinc-600">
+    <div class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm max-w-lg">
+      <h2 class="pb-2 text-2xl font-semibold">{@t.submitted}</h2>
+      <p class="text-stone-600">
         {@t.reference} <span class="font-mono">#{@order_id}</span> · {@po.number}
       </p>
-      <p class="text-zinc-500 text-sm">
+      <p class="pt-1 text-sm text-stone-500">
         {@t.total} {@summary.total} ({@summary.item_count} {@t.items})
       </p>
     </div>

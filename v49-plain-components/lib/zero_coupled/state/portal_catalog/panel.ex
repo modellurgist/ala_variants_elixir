@@ -43,8 +43,8 @@ defmodule ZeroCoupled.State.PortalCatalog.Panel do
 
   def render(assigns) do
     ~H"""
-    <section>
-      <h2 class="text-lg font-semibold pb-2">{@t.heading}</h2>
+    <section class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+      <h2 class="pb-2 text-base font-semibold text-stone-900">{@t.heading}</h2>
       <div id="portal_products" phx-update="stream">
         <.catalog_row
           :for={{dom_id, row} <- @streams.portal_products}

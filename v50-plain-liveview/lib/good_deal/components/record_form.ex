@@ -21,7 +21,7 @@ defmodule GoodDeal.Components.RecordForm do
   def record_form(assigns) do
     ~H"""
     <div>
-      <.header>
+      <.header class="mb-6">
         {@title}
         <:subtitle :if={@subtitle}>{@subtitle}</:subtitle>
       </.header>

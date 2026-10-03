@@ -21,16 +21,34 @@ defmodule ZeroCoupled.Catalog.ProductLineRow do
   slot :detail
   slot :actions
 
+  # literal class names, so Tailwind's scan of the source finds them; below `sm` the actions wrap
+  # to their own line
+  @grids %{
+    "4rem_1fr_auto" => "grid-cols-[4rem_1fr] sm:grid-cols-[4rem_1fr_auto]",
+    "4rem_1fr_auto_auto" => "grid-cols-[4rem_1fr] sm:grid-cols-[4rem_1fr_auto_auto]"
+  }
+
   def product_line(assigns) do
+    assigns = assign(assigns, :grid, Map.fetch!(@grids, assigns.cols))
+
     ~H"""
-    <div id={@id} class={"grid grid-cols-[#{@cols}] items-center gap-4 border-b py-4"}>
-      <img class="w-16 h-16 object-contain" src={@product.thumbnail} alt={@product.name} />
-      <div>
-        <div class="font-medium">{@product.name}</div>
-        <div class="text-sm text-zinc-500">{Money.new(@product.amount)}{@price_suffix}</div>
+    <div
+      id={@id}
+      class={["grid items-center gap-4 border-b border-stone-200 py-5 last:border-b-0", @grid]}
+    >
+      <img
+        class="h-16 w-16 rounded-lg object-cover ring-1 ring-stone-200"
+        src={@product.thumbnail}
+        alt={@product.name}
+      />
+      <div class="min-w-0">
+        <div class="truncate font-medium text-stone-900">{@product.name}</div>
+        <div class="text-sm text-stone-500">{Money.new(@product.amount)}{@price_suffix}</div>
         {render_slot(@detail)}
       </div>
-      {render_slot(@actions)}
+      <div class="col-span-2 flex items-center justify-end gap-4 sm:col-span-1 sm:contents">
+        {render_slot(@actions)}
+      </div>
     </div>
     """
   end

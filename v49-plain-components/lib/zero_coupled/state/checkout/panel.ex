@@ -83,14 +83,16 @@ defmodule ZeroCoupled.State.Checkout.Panel do
         milestones={@milestones}
         order={[:address, :payment, :processing, :error, :complete]}
       />
-      <.screen
-        step={@step}
-        address={@address}
-        address_form={@address_form}
-        total={@total}
-        myself={@myself}
-        t={@t}
-      />
+      <section class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+        <.screen
+          step={@step}
+          address={@address}
+          address_form={@address_form}
+          total={@total}
+          myself={@myself}
+          t={@t}
+        />
+      </section>
     </div>
     """
   end
@@ -115,22 +117,26 @@ defmodule ZeroCoupled.State.Checkout.Panel do
   defp screen(%{step: :payment} = assigns) do
     ~H"""
     <div class="space-y-4">
-      <div class="rounded border p-4 text-sm text-zinc-700">
+      <div class="rounded-xl bg-stone-50 p-4 text-sm text-stone-700">
         <div class="font-medium">{@address.name}</div>
         <div>{@address.line1}</div>
         <div>{@address.city}, {@address.postal_code}</div>
       </div>
-      <div class="flex justify-between font-bold text-xl border-t pt-4">
+      <div class="flex justify-between border-t border-stone-200 pt-4 text-lg font-semibold">
         <span>{@t.total}</span><span>{@total}</span>
       </div>
-      <div class="flex gap-3">
-        <button phx-click="edit_address" phx-target={@myself} class="text-sm text-zinc-500 underline">
+      <div class="flex items-center justify-between gap-3">
+        <button
+          phx-click="edit_address"
+          phx-target={@myself}
+          class="text-sm font-medium text-stone-500 hover:text-stone-800"
+        >
           {@t.edit_address}
         </button>
         <button
           phx-click="pay"
           phx-target={@myself}
-          class="rounded-lg bg-zinc-900 py-2 px-4 text-sm font-semibold text-white"
+          class="rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-800"
         >
           {@t.pay} {@total}
         </button>
@@ -141,8 +147,8 @@ defmodule ZeroCoupled.State.Checkout.Panel do
 
   defp screen(%{step: :processing} = assigns) do
     ~H"""
-    <div class="flex items-center gap-3 text-zinc-500 py-6">
-      <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+    <div class="flex items-center gap-3 py-6 text-stone-500">
+      <svg class="h-5 w-5 animate-spin text-brand-700" viewBox="0 0 24 24" fill="none">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
@@ -154,11 +160,11 @@ defmodule ZeroCoupled.State.Checkout.Panel do
   defp screen(%{step: :error} = assigns) do
     ~H"""
     <div class="space-y-3">
-      <p class="text-red-600 text-sm">{@t.payment_failed}</p>
+      <p class="rounded-xl bg-red-50 p-4 text-sm text-red-700">{@t.payment_failed}</p>
       <button
         phx-click="pay"
         phx-target={@myself}
-        class="rounded-lg bg-zinc-900 py-2 px-4 text-sm font-semibold text-white"
+        class="rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-800"
       >
         {@t.try_again}
       </button>
@@ -168,7 +174,7 @@ defmodule ZeroCoupled.State.Checkout.Panel do
 
   defp screen(assigns) do
     ~H"""
-    <p class="text-zinc-500 py-6">{@t.redirecting}</p>
+    <p class="py-6 text-stone-500">{@t.redirecting}</p>
     """
   end
 end

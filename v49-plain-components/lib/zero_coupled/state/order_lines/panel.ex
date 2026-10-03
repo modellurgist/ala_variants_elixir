@@ -59,33 +59,36 @@ defmodule ZeroCoupled.State.OrderLines.Panel do
 
   def render(assigns) do
     ~H"""
-    <section>
-      <h2 class="text-lg font-semibold pb-2">{@t.heading}</h2>
-      <div id="order_lines" phx-update="stream">
-        <.order_line_row
-          :for={{dom_id, row} <- @streams.order_lines}
-          id={dom_id}
-          row={row}
-          target={@myself}
-          on_quantity="set_line_quantity"
-          on_remove="remove_line"
-          t={@t.row}
-        />
-      </div>
-      <div :if={@summary.empty?} class="py-8 text-center text-zinc-400">{@empty_text}</div>
-      <.order_summary summary={@summary} t={@t.summary} />
-      <button
-        phx-click="go_review"
-        phx-target={@myself}
-        disabled={@summary.empty?}
-        class={[
-          "rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-4 text-sm font-semibold text-white",
-          @summary.empty? && "opacity-50 cursor-not-allowed"
-        ]}
-      >
-        {@t.review} · {@summary.total}
-      </button>
-    </section>
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_22rem]">
+      <section class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+        <h2 class="pb-2 text-base font-semibold text-stone-900">{@t.heading}</h2>
+        <div id="order_lines" phx-update="stream">
+          <.order_line_row
+            :for={{dom_id, row} <- @streams.order_lines}
+            id={dom_id}
+            row={row}
+            target={@myself}
+            on_quantity="set_line_quantity"
+            on_remove="remove_line"
+            t={@t.row}
+          />
+        </div>
+        <div :if={@summary.empty?} class="py-14 text-center text-sm text-stone-400">
+          {@empty_text}
+        </div>
+      </section>
+      <section class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+        <.order_summary summary={@summary} t={@t.summary} />
+        <button
+          phx-click="go_review"
+          phx-target={@myself}
+          disabled={@summary.empty?}
+          class="mt-6 w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:shadow-none"
+        >
+          {@t.review} · {@summary.total}
+        </button>
+      </section>
+    </div>
     """
   end
 end

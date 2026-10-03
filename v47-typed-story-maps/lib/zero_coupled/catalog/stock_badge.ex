@@ -16,8 +16,8 @@ defmodule ZeroCoupled.Catalog.StockBadge do
     <span
       :if={@status != :in_stock}
       class={[
-        "text-xs font-medium px-1.5 py-0.5 rounded",
-        @status == :low_stock && "bg-amber-100 text-amber-700",
+        "mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium",
+        @status == :low_stock && "bg-amber-100 text-amber-800",
         @status == :out_of_stock && "bg-red-100 text-red-700"
       ]}
     >

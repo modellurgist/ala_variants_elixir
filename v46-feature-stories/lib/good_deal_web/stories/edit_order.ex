@@ -80,25 +80,30 @@ defmodule GoodDealWeb.Stories.EditOrder do
   attr :streams, :map, required: true
   attr :t, :map, required: true, doc: "the order's texts, from the page"
 
-  def view(assigns) do
+  def rows(assigns) do
     ~H"""
-    <section>
-      <h2 class="text-lg font-semibold pb-2">{@t.heading}</h2>
-      <.stream_list :let={{dom_id, row}} id="order_lines" stream={@streams.order_lines}>
-        <.order_line_row
-          id={dom_id}
-          row={row}
-          on_quantity="set_line_quantity"
-          on_remove="remove_line"
-          t={@t.row}
-        />
-      </.stream_list>
-      <.none count={@story.view.summary.item_count} text={@t.empty} />
-      <.order_summary summary={@story.view.summary} t={@t.summary} />
-      <.primary_button event="go_review" disabled={@story.view.summary.empty?}>
-        {@t.review} · {@story.view.summary.total}
-      </.primary_button>
-    </section>
+    <.stream_list :let={{dom_id, row}} id="order_lines" stream={@streams.order_lines}>
+      <.order_line_row
+        id={dom_id}
+        row={row}
+        on_quantity="set_line_quantity"
+        on_remove="remove_line"
+        t={@t.row}
+      />
+    </.stream_list>
+    <.none count={@story.view.summary.item_count} text={@t.empty} />
+    """
+  end
+
+  attr :story, :map, required: true
+  attr :t, :map, required: true, doc: "the order's texts, from the page"
+
+  def totals(assigns) do
+    ~H"""
+    <.order_summary summary={@story.view.summary} t={@t.summary} />
+    <.primary_button event="go_review" disabled={@story.view.summary.empty?} class="mt-6 w-full">
+      {@t.review} · {@story.view.summary.total}
+    </.primary_button>
     """
   end
 end

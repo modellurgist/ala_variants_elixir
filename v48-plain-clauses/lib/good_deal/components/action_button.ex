@@ -14,7 +14,7 @@ defmodule GoodDeal.Components.ActionButton do
 
   attr :on, :string, required: true, doc: "the event this button fires"
   attr :label, :string, required: true
-  attr :class, :string, default: "text-sm font-medium text-blue-600"
+  attr :class, :string, default: "text-sm font-medium text-brand-700 hover:text-brand-800"
   attr :rest, :global, doc: "phx-value-* payload attributes"
 
   def action_button(assigns) do

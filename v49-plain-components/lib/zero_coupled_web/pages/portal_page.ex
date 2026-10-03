@@ -176,8 +176,8 @@ defmodule ZeroCoupledWeb.PortalPage do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-3xl mx-auto px-6">
-      <h1 class="text-4xl pb-2 font-semibold">Bulk Order Portal</h1>
+    <div>
+      <h1 class="pb-6 text-3xl font-semibold tracking-tight">Bulk Order Portal</h1>
       <.milestones step={@step} milestones={@milestones} />
       <.pane current={@step} name={:lines} class="space-y-8">
         <.live_component
@@ -198,14 +198,16 @@ defmodule ZeroCoupledWeb.PortalPage do
           empty_text="No lines yet. Add products below."
           t={@texts.order}
         />
-        <.live_component
-          module={PortalCatalog.Panel}
-          id="catalog"
-          name={:catalog}
-          products={&Products.list/0}
-          stock_status={@stock_status}
-          t={@texts.catalog}
-        />
+        <div class="grid gap-8 lg:grid-cols-[1fr_22rem]">
+          <.live_component
+            module={PortalCatalog.Panel}
+            id="catalog"
+            name={:catalog}
+            products={&Products.list/0}
+            stock_status={@stock_status}
+            t={@texts.catalog}
+          />
+        </div>
       </.pane>
       <.live_component
         module={PortalSubmit.Panel}

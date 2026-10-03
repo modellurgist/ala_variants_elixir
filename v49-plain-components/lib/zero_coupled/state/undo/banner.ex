@@ -50,13 +50,13 @@ defmodule ZeroCoupled.State.Undo.Banner do
     <div>
       <div
         :if={Undo.pending?(@state)}
-        class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4"
+        class="mb-6 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
       >
-        <span class="text-sm text-amber-800">{@text}</span>
+        <span class="text-sm text-amber-900">{@text}</span>
         <button
           phx-click="undo_remove"
           phx-target={@myself}
-          class="text-sm font-semibold text-amber-700 underline"
+          class="rounded-lg bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-900 hover:bg-amber-200"
         >
           {@t.undo}
         </button>

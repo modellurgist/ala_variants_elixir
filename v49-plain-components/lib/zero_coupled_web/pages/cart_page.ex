@@ -269,8 +269,8 @@ defmodule ZeroCoupledWeb.CartPage do
   @impl true
   def render(assigns) do
     ~H"""
-    <.pane current={@live_action} name={:index} class="max-w-2xl mx-auto px-6">
-      <h1 class="text-4xl pb-4 font-semibold">Your Cart</h1>
+    <.pane current={@live_action} name={:index}>
+      <h1 class="pb-6 text-3xl font-semibold tracking-tight">Your Cart</h1>
       <.live_component
         module={Undo.Banner}
         id="undo"
@@ -279,63 +279,61 @@ defmodule ZeroCoupledWeb.CartPage do
         text="Item removed."
         t={@texts.undo}
       />
-      <.tabs current={@active_tab} event="switch_tab">
-        <:tab name={:items} label={"Items (#{@cart_summary.item_count})"} />
-        <:tab name={:saved} label={"Saved (#{@saved_count})"} />
-        <:tab name={:wishlist} label={"Wishlist (#{@wishlist_count})"} />
-      </.tabs>
-      <.pane current={@active_tab} name={:items}>
-        <.live_component
-          module={Cart.Panel}
-          id="cart"
-          name={:cart}
-          cart_id={@cart_id}
-          pricing={@pricing}
-          source={&Carts.list_items/1}
-          wishlist_ids={@wishlist_ids}
-          gift_wrap_label={@texts.cart.gift_wrap_label}
-          empty_text="Your cart is empty."
-          invalid_promo_text="Invalid promo code"
-          t={@texts.cart}
-        />
-        <div class="py-4">
-          <button
-            phx-click="start_checkout"
-            disabled={@cart_summary.empty?}
-            class={[
-              "rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-4 text-sm font-semibold text-white",
-              @cart_summary.empty? && "opacity-50 cursor-not-allowed"
-            ]}
+      <section class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+        <.tabs current={@active_tab} event="switch_tab">
+          <:tab name={:items} label={"Items (#{@cart_summary.item_count})"} />
+          <:tab name={:saved} label={"Saved (#{@saved_count})"} />
+          <:tab name={:wishlist} label={"Wishlist (#{@wishlist_count})"} />
+        </.tabs>
+        <.pane current={@active_tab} name={:items}>
+          <.live_component
+            module={Cart.Panel}
+            id="cart"
+            name={:cart}
+            cart_id={@cart_id}
+            pricing={@pricing}
+            source={&Carts.list_items/1}
+            wishlist_ids={@wishlist_ids}
+            gift_wrap_label={@texts.cart.gift_wrap_label}
+            empty_text="Your cart is empty."
+            invalid_promo_text="Invalid promo code"
+            t={@texts.cart}
           >
-            Checkout
-          </button>
-        </div>
-      </.pane>
-      <.pane current={@active_tab} name={:saved}>
-        <.live_component
-          module={SavedItems.Panel}
-          id="saved"
-          name={:saved}
-          empty_text="No saved items."
-          t={@texts.saved}
-        />
-      </.pane>
-      <.pane current={@active_tab} name={:wishlist}>
-        <.live_component
-          module={Wishlist.Panel}
-          id="wishlist"
-          name={:wishlist}
-          empty_text="Your wishlist is empty."
-          t={@texts.wishlist}
-        />
-      </.pane>
+            <button
+              phx-click="start_checkout"
+              disabled={@cart_summary.empty?}
+              class="mt-6 w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:shadow-none"
+            >
+              Checkout · {@cart_summary.total}
+            </button>
+          </.live_component>
+        </.pane>
+        <.pane current={@active_tab} name={:saved}>
+          <.live_component
+            module={SavedItems.Panel}
+            id="saved"
+            name={:saved}
+            empty_text="No saved items."
+            t={@texts.saved}
+          />
+        </.pane>
+        <.pane current={@active_tab} name={:wishlist}>
+          <.live_component
+            module={Wishlist.Panel}
+            id="wishlist"
+            name={:wishlist}
+            empty_text="Your wishlist is empty."
+            t={@texts.wishlist}
+          />
+        </.pane>
+      </section>
     </.pane>
     <.only_on current={@live_action} name={:checkout}>
-      <div class="max-w-lg mx-auto px-6 py-6">
-        <.link navigate={~p"/cart"} class="text-sm text-zinc-500 hover:underline">
+      <div class="mx-auto max-w-lg">
+        <.link navigate={~p"/cart"} class="text-sm font-medium text-stone-500 hover:text-stone-800">
           ← Back to cart
         </.link>
-        <h1 class="text-3xl font-semibold py-4">Checkout</h1>
+        <h1 class="py-4 text-3xl font-semibold tracking-tight">Checkout</h1>
         <.live_component
           module={Checkout.Panel}
           id="checkout"

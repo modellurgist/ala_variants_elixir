@@ -10,6 +10,7 @@ defmodule ZeroCoupledWeb.CartPage do
   use ZeroCoupledWeb, :live_view
   on_mount {ZeroCoupledWeb.Paradigms.Subscribed, {ZeroCoupled.Foundation.Broadcast, :subscribe}}
   import ZeroCoupled.Catalog.Panes, only: [pane: 1, tabs: 1]
+  import ZeroCoupled.Catalog.Parts, only: [card: 1]
 
   alias ZeroCoupled.Domain.{
     AddLine,
@@ -227,24 +228,30 @@ defmodule ZeroCoupledWeb.CartPage do
 
   def render(assigns) do
     ~H"""
-    <div class="max-w-2xl mx-auto px-6">
-      <h1 class="text-4xl pb-4 font-semibold">Your Cart</h1>
+    <div>
+      <h1 class="pb-6 text-3xl font-semibold tracking-tight">Your Cart</h1>
       <UndoRemoval.view story={@undo} t={@texts.undo} />
-      <.tabs current={@active_tab} event="switch_tab">
-        <:tab name={:items} label={"#{@texts.tabs.items} (#{@summary.item_count})"} />
-        <:tab name={:saved} label={"#{@texts.tabs.saved} (#{@saved_count})"} />
-        <:tab name={:wishlist} label={"#{@texts.tabs.wishlist} (#{@wishlist_count})"} />
-      </.tabs>
-      <.pane current={@active_tab} name={:items}>
-        <EditCart.rows story={@edit_cart} streams={@streams} t={@texts.cart} />
-      </.pane>
-      <.pane current={@active_tab} name={:saved}>
-        <SaveForLater.view story={@saved} streams={@streams} t={@texts.saved} />
-      </.pane>
-      <.pane current={@active_tab} name={:wishlist}>
-        <KeepWishlist.view story={@wishlist} streams={@streams} t={@texts.wishlist} />
-      </.pane>
-      <EditCart.totals story={@edit_cart} t={@texts.cart} />
+      <div class="grid items-start gap-8 lg:grid-cols-[1fr_22rem]">
+        <.card>
+          <.tabs current={@active_tab} event="switch_tab">
+            <:tab name={:items} label={"#{@texts.tabs.items} (#{@summary.item_count})"} />
+            <:tab name={:saved} label={"#{@texts.tabs.saved} (#{@saved_count})"} />
+            <:tab name={:wishlist} label={"#{@texts.tabs.wishlist} (#{@wishlist_count})"} />
+          </.tabs>
+          <.pane current={@active_tab} name={:items}>
+            <EditCart.rows story={@edit_cart} streams={@streams} t={@texts.cart} />
+          </.pane>
+          <.pane current={@active_tab} name={:saved}>
+            <SaveForLater.view story={@saved} streams={@streams} t={@texts.saved} />
+          </.pane>
+          <.pane current={@active_tab} name={:wishlist}>
+            <KeepWishlist.view story={@wishlist} streams={@streams} t={@texts.wishlist} />
+          </.pane>
+        </.card>
+        <.card class="lg:sticky lg:top-24">
+          <EditCart.totals story={@edit_cart} t={@texts.cart} />
+        </.card>
+      </div>
     </div>
     """
   end

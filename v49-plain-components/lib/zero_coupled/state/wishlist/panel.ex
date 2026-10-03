@@ -47,7 +47,7 @@ defmodule ZeroCoupled.State.Wishlist.Panel do
           t={@t.row}
         />
       </div>
-      <div :if={@count == 0} class="py-12 text-center text-zinc-400">{@empty_text}</div>
+      <div :if={@count == 0} class="py-14 text-center text-sm text-stone-400">{@empty_text}</div>
     </div>
     """
   end

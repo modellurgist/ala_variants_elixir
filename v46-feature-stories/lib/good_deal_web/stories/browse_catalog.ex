@@ -60,12 +60,9 @@ defmodule GoodDealWeb.Stories.BrowseCatalog do
 
   def view(assigns) do
     ~H"""
-    <section>
-      <h2 class="text-lg font-semibold pb-2">{@t.heading}</h2>
-      <.stream_list :let={{dom_id, row}} id="portal_products" stream={@streams.portal_products}>
-        <.catalog_row id={dom_id} row={row} on_add="add_to_order" t={@t.row} />
-      </.stream_list>
-    </section>
+    <.stream_list :let={{dom_id, row}} id="portal_products" stream={@streams.portal_products}>
+      <.catalog_row id={dom_id} row={row} on_add="add_to_order" t={@t.row} />
+    </.stream_list>
     """
   end
 end

@@ -8,6 +8,7 @@ defmodule ZeroCoupledWeb.PortalPage do
   use ZeroCoupledWeb, :live_view
   on_mount {ZeroCoupledWeb.Paradigms.Subscribed, {ZeroCoupled.Foundation.Broadcast, :subscribe}}
   import ZeroCoupled.Catalog.Panes, only: [only_on: 1]
+  import ZeroCoupled.Catalog.Parts, only: [card: 1]
   import ZeroCoupled.Catalog.Rows, only: [milestones: 1]
 
   alias ZeroCoupled.Domain.{AddLine, CalculateShipping, PlaceOrder, StockStatus, VolumeTier}
@@ -157,14 +158,23 @@ defmodule ZeroCoupledWeb.PortalPage do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-3xl mx-auto px-6">
-      <h1 class="text-4xl pb-2 font-semibold">Bulk Order Portal</h1>
+    <div>
+      <h1 class="pb-6 text-3xl font-semibold tracking-tight">Bulk Order Portal</h1>
       <.milestones step={@step} milestones={@milestones} />
       <.only_on current={@step} name={:lines}>
-        <div class="space-y-8">
-          <UndoRemoval.view story={@undo} t={@texts.undo} />
-          <EditOrder.view story={@order} streams={@streams} t={@texts.order} />
-          <BrowseCatalog.view streams={@streams} t={@texts.catalog} />
+        <UndoRemoval.view story={@undo} t={@texts.undo} />
+        <div class="grid items-start gap-8 lg:grid-cols-[1fr_22rem]">
+          <div class="space-y-8">
+            <.card title={@texts.order.heading}>
+              <EditOrder.rows story={@order} streams={@streams} t={@texts.order} />
+            </.card>
+            <.card title={@texts.catalog.heading}>
+              <BrowseCatalog.view streams={@streams} t={@texts.catalog} />
+            </.card>
+          </div>
+          <.card class="lg:sticky lg:top-24">
+            <EditOrder.totals story={@order} t={@texts.order} />
+          </.card>
         </div>
       </.only_on>
       <SubmitOrder.view story={@submit} step={@step} t={@texts.submit} />

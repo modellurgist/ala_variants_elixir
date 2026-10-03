@@ -346,147 +346,169 @@ defmodule GoodDealWeb.CartLive.Show do
   @impl true
   def render(%{live_action: :checkout} = assigns) do
     ~H"""
-    <div class="max-w-lg mx-auto px-6 py-6">
-      <.link navigate={~p"/cart"} class="text-sm text-zinc-500 hover:underline">
+    <div class="mx-auto max-w-lg">
+      <.link navigate={~p"/cart"} class="text-sm font-medium text-stone-500 hover:text-stone-800">
         {@texts.checkout.back}
       </.link>
-      <h1 class="text-3xl font-semibold py-4">{@texts.checkout.heading}</h1>
+      <h1 class="py-4 text-3xl font-semibold tracking-tight">{@texts.checkout.heading}</h1>
       <.milestones
         step={@step}
         milestones={@milestones}
         order={[:address, :payment, :processing, :error, :complete]}
       />
-      <.only_on current={@step} name={:address}>
-        <.simple_form for={@address_form} phx-change="validate_address" phx-submit="submit_address">
-          <.input
-            field={@address_form[:name]}
-            label={@texts.checkout.name}
-            phx-hook="AutoFocus"
-            id="address_name"
-          />
-          <.input field={@address_form[:line1]} label={@texts.checkout.line1} />
-          <.input field={@address_form[:city]} label={@texts.checkout.city} />
-          <.input field={@address_form[:postal_code]} label={@texts.checkout.postal_code} />
-          <:actions>
-            <.button phx-disable-with={@texts.checkout.saving}>{@texts.checkout.continue}</.button>
-          </:actions>
-        </.simple_form>
-      </.only_on>
-      <.only_on current={@step} name={:payment}>
-        <div class="space-y-4">
-          <div class="rounded border p-4 text-sm text-zinc-700">
-            <div class="font-medium">{@address.name}</div>
-            <div>{@address.line1}</div>
-            <div>{@address.city}, {@address.postal_code}</div>
-          </div>
-          <div class="flex justify-between font-bold text-xl border-t pt-4">
-            <span>{@texts.checkout.total}</span><span>{@summary.total}</span>
-          </div>
-          <div class="flex gap-3">
-            <button phx-click="edit_address" class="text-sm text-zinc-500 underline">
-              {@texts.checkout.edit_address}
-            </button>
-            <.primary_button event="pay">{@texts.checkout.pay} {@summary.total}</.primary_button>
-          </div>
-        </div>
-      </.only_on>
-      <.only_on current={@step} name={:processing}>
-        <div class="flex items-center gap-3 text-zinc-500 py-6">
-          <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      <.card>
+        <.only_on current={@step} name={:address}>
+          <.simple_form for={@address_form} phx-change="validate_address" phx-submit="submit_address">
+            <.input
+              field={@address_form[:name]}
+              label={@texts.checkout.name}
+              phx-hook="AutoFocus"
+              id="address_name"
             />
-          </svg>
-          {@texts.checkout.processing}
-        </div>
-      </.only_on>
-      <.only_on current={@step} name={:error}>
-        <div class="space-y-3">
-          <p class="text-red-600 text-sm">{@texts.checkout.payment_failed}</p>
-          <.primary_button event="pay">{@texts.checkout.try_again}</.primary_button>
-        </div>
-      </.only_on>
-      <.only_on current={@step} name={:complete}>
-        <p class="text-zinc-500 py-6">{@texts.checkout.redirecting}</p>
-      </.only_on>
+            <.input field={@address_form[:line1]} label={@texts.checkout.line1} />
+            <.input field={@address_form[:city]} label={@texts.checkout.city} />
+            <.input field={@address_form[:postal_code]} label={@texts.checkout.postal_code} />
+            <:actions>
+              <.button phx-disable-with={@texts.checkout.saving}>{@texts.checkout.continue}</.button>
+            </:actions>
+          </.simple_form>
+        </.only_on>
+        <.only_on current={@step} name={:payment}>
+          <div class="space-y-4">
+            <div class="rounded-xl bg-stone-50 p-4 text-sm text-stone-700">
+              <div class="font-medium">{@address.name}</div>
+              <div>{@address.line1}</div>
+              <div>{@address.city}, {@address.postal_code}</div>
+            </div>
+            <div class="flex justify-between border-t border-stone-200 pt-4 text-lg font-semibold">
+              <span>{@texts.checkout.total}</span><span>{@summary.total}</span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <button
+                phx-click="edit_address"
+                class="text-sm font-medium text-stone-500 hover:text-stone-800"
+              >
+                {@texts.checkout.edit_address}
+              </button>
+              <.primary_button event="pay">{@texts.checkout.pay} {@summary.total}</.primary_button>
+            </div>
+          </div>
+        </.only_on>
+        <.only_on current={@step} name={:processing}>
+          <div class="flex items-center gap-3 py-6 text-stone-500">
+            <svg class="h-5 w-5 animate-spin text-brand-700" viewBox="0 0 24 24" fill="none">
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            {@texts.checkout.processing}
+          </div>
+        </.only_on>
+        <.only_on current={@step} name={:error}>
+          <div class="space-y-3">
+            <p class="rounded-xl bg-red-50 p-4 text-sm text-red-700">
+              {@texts.checkout.payment_failed}
+            </p>
+            <.primary_button event="pay">{@texts.checkout.try_again}</.primary_button>
+          </div>
+        </.only_on>
+        <.only_on current={@step} name={:complete}>
+          <p class="py-6 text-stone-500">{@texts.checkout.redirecting}</p>
+        </.only_on>
+      </.card>
     </div>
     """
   end
 
   def render(assigns) do
     ~H"""
-    <div class="max-w-2xl mx-auto px-6">
-      <h1 class="text-4xl pb-4 font-semibold">Your Cart</h1>
+    <div>
+      <h1 class="pb-6 text-3xl font-semibold tracking-tight">Your Cart</h1>
       <.notice
         shown={@undo_pending}
         text={@texts.undo.text}
         action={@texts.undo.undo}
         event="undo_remove"
       />
-      <.tabs current={@active_tab} event="switch_tab">
-        <:tab name={:items} label={"#{@texts.tabs.items} (#{@summary.item_count})"} />
-        <:tab name={:saved} label={"#{@texts.tabs.saved} (#{@saved_count})"} />
-        <:tab name={:wishlist} label={"#{@texts.tabs.wishlist} (#{@wishlist_count})"} />
-      </.tabs>
+      <div class="grid items-start gap-8 lg:grid-cols-[1fr_22rem]">
+        <.card>
+          <.tabs current={@active_tab} event="switch_tab">
+            <:tab name={:items} label={"#{@texts.tabs.items} (#{@summary.item_count})"} />
+            <:tab name={:saved} label={"#{@texts.tabs.saved} (#{@saved_count})"} />
+            <:tab name={:wishlist} label={"#{@texts.tabs.wishlist} (#{@wishlist_count})"} />
+          </.tabs>
 
-      <.pane current={@active_tab} name={:items}>
-        <.stream_list :let={{dom_id, row}} id="cart_items" stream={@streams.cart_items}>
-          <.cart_item_row
-            id={dom_id}
-            row={row}
-            wishlist_ids={@wishlist_ids}
-            gift_wrap_label={@texts.cart.gift_wrap_label}
-            t={@texts.cart.row}
-            on_quantity="update_quantity"
-            on_remove="remove_item"
-            on_gift_wrap="toggle_gift_wrap"
-            on_save="save_for_later"
-            on_wishlist="toggle_wishlist"
+          <.pane current={@active_tab} name={:items}>
+            <.stream_list :let={{dom_id, row}} id="cart_items" stream={@streams.cart_items}>
+              <.cart_item_row
+                id={dom_id}
+                row={row}
+                wishlist_ids={@wishlist_ids}
+                gift_wrap_label={@texts.cart.gift_wrap_label}
+                t={@texts.cart.row}
+                on_quantity="update_quantity"
+                on_remove="remove_item"
+                on_gift_wrap="toggle_gift_wrap"
+                on_save="save_for_later"
+                on_wishlist="toggle_wishlist"
+              />
+            </.stream_list>
+            <.none count={@summary.item_count} text={@texts.cart.empty} />
+          </.pane>
+
+          <.pane current={@active_tab} name={:saved}>
+            <.stream_list :let={{dom_id, row}} id="saved_items" stream={@streams.saved_items}>
+              <.saved_row id={dom_id} row={row} t={@texts.saved.row} on_move="move_to_cart" />
+            </.stream_list>
+            <.none count={@saved_count} text={@texts.saved.empty} />
+          </.pane>
+
+          <.pane current={@active_tab} name={:wishlist}>
+            <.stream_list
+              :let={{dom_id, row}}
+              id="wishlist_products"
+              stream={@streams.wishlist_products}
+            >
+              <.wishlist_row
+                id={dom_id}
+                row={row}
+                t={@texts.wishlist.row}
+                on_add="add_wishlisted_to_cart"
+                on_remove="remove_wishlist"
+              />
+            </.stream_list>
+            <.none count={@wishlist_count} text={@texts.wishlist.empty} />
+          </.pane>
+        </.card>
+
+        <.card class="lg:sticky lg:top-24">
+          <.cart_summary summary={@summary} t={@texts.cart} />
+          <.shipping_selector
+            summary={@summary}
+            heading={@texts.cart.shipping}
+            free_over={@texts.cart.free_over}
+            event="select_shipping"
           />
-        </.stream_list>
-        <.none count={@summary.item_count} text={@texts.cart.empty} />
-      </.pane>
-
-      <.pane current={@active_tab} name={:saved}>
-        <.stream_list :let={{dom_id, row}} id="saved_items" stream={@streams.saved_items}>
-          <.saved_row id={dom_id} row={row} t={@texts.saved.row} on_move="move_to_cart" />
-        </.stream_list>
-        <.none count={@saved_count} text={@texts.saved.empty} />
-      </.pane>
-
-      <.pane current={@active_tab} name={:wishlist}>
-        <.stream_list :let={{dom_id, row}} id="wishlist_products" stream={@streams.wishlist_products}>
-          <.wishlist_row
-            id={dom_id}
-            row={row}
-            t={@texts.wishlist.row}
-            on_add="add_wishlisted_to_cart"
-            on_remove="remove_wishlist"
+          <.promo_form
+            code={@summary.promo_code}
+            error={@promo_error}
+            event="apply_promo"
+            t={@texts.cart}
           />
-        </.stream_list>
-        <.none count={@wishlist_count} text={@texts.wishlist.empty} />
-      </.pane>
-
-      <.cart_summary summary={@summary} t={@texts.cart} />
-      <.shipping_selector
-        summary={@summary}
-        heading={@texts.cart.shipping}
-        free_over={@texts.cart.free_over}
-        event="select_shipping"
-      />
-      <.promo_form
-        code={@summary.promo_code}
-        error={@promo_error}
-        event="apply_promo"
-        t={@texts.cart}
-      />
-      <div class="py-4">
-        <.primary_button event="start_checkout" disabled={@summary.empty?}>
-          {@texts.cart.checkout} · {@summary.total}
-        </.primary_button>
+          <.primary_button event="start_checkout" disabled={@summary.empty?} class="mt-6 w-full">
+            {@texts.cart.checkout} · {@summary.total}
+          </.primary_button>
+        </.card>
       </div>
     </div>
     """

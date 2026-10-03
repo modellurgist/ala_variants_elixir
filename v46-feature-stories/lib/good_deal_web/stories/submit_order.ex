@@ -9,6 +9,7 @@ defmodule GoodDealWeb.Stories.SubmitOrder do
   @behaviour GoodDealWeb.Paradigms.Story
   import Phoenix.LiveView, only: [put_flash: 3]
   import GoodDeal.Components.Panes, only: [only_on: 1]
+  import GoodDeal.Components.Parts, only: [card: 1]
   import GoodDeal.Components.Rows, only: [order_summary: 1]
 
   alias GoodDeal.Domain.PlaceOrder
@@ -78,8 +79,10 @@ defmodule GoodDealWeb.Stories.SubmitOrder do
   def view(assigns) do
     ~H"""
     <.only_on current={@step} name={:review}>
-      <div class="space-y-4 max-w-lg">
-        <.order_summary summary={@story.view.summary} t={@t.summary} />
+      <.card class="max-w-lg">
+        <div class="mb-6">
+          <.order_summary summary={@story.view.summary} t={@t.summary} />
+        </div>
         <.simple_form for={@story.view.form} phx-change="validate_po" phx-submit="submit_order">
           <.input
             field={@story.view.form[:number]}
@@ -88,7 +91,11 @@ defmodule GoodDealWeb.Stories.SubmitOrder do
           />
           <.input field={@story.view.form[:notes]} label={@t.notes} />
           <:actions>
-            <button type="button" phx-click="edit_lines" class="text-sm text-zinc-500 underline">
+            <button
+              type="button"
+              phx-click="edit_lines"
+              class="text-sm font-medium text-stone-500 hover:text-stone-800"
+            >
               {@t.back}
             </button>
             <.button phx-disable-with={@t.submitting}>
@@ -96,19 +103,19 @@ defmodule GoodDealWeb.Stories.SubmitOrder do
             </.button>
           </:actions>
         </.simple_form>
-      </div>
+      </.card>
     </.only_on>
     <.only_on current={@step} name={:submitted}>
-      <div class="py-10 space-y-2">
-        <h2 class="text-2xl font-semibold">{@t.submitted}</h2>
-        <p class="text-zinc-600">
+      <.card class="max-w-lg">
+        <h2 class="pb-2 text-2xl font-semibold">{@t.submitted}</h2>
+        <p class="text-stone-600">
           {@t.reference} <span class="font-mono">#{@story.view.order_id}</span>
           · {@story.view.po.number}
         </p>
-        <p class="text-zinc-500 text-sm">
+        <p class="pt-1 text-sm text-stone-500">
           {@t.total} {@story.view.summary.total} ({@story.view.summary.item_count} {@t.items})
         </p>
-      </div>
+      </.card>
     </.only_on>
     """
   end

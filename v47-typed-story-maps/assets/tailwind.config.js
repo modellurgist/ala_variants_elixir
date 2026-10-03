@@ -8,13 +8,21 @@ const path = require("path")
 module.exports = {
   content: [
     "./js/**/*.js",
-    "../lib/*_web.ex",
-    "../lib/*_web/**/*.*ex"
+    "../lib/**/*.*ex"
   ],
   theme: {
     extend: {
       colors: {
-        brand: "#FD4F00",
+        brand: {
+          50: "#ecfdf5",
+          100: "#d1fae5",
+          200: "#a7f3d0",
+          500: "#10b981",
+          600: "#059669",
+          700: "#047857",
+          800: "#065f46",
+          900: "#064e3b"
+        },
       }
     },
   },

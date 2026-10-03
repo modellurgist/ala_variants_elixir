@@ -54,7 +54,6 @@ defmodule ZeroCoupledWeb.ProductLive.Index do
 
   @impl true
   def mount(_params, session, socket) do
-
     socket =
       socket
       |> assign(

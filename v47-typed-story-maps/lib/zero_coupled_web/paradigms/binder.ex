@@ -40,7 +40,8 @@ defmodule ZeroCoupledWeb.Paradigms.Binder do
   @callback ports() :: %{in: keyword, out: keyword}
   @callback events() :: [String.t()]
   @callback streams() :: [atom]
-  @callback event(Phoenix.LiveView.Socket.t(), atom, String.t(), map) :: Phoenix.LiveView.Socket.t()
+  @callback event(Phoenix.LiveView.Socket.t(), atom, String.t(), map) ::
+              Phoenix.LiveView.Socket.t()
 
   defstruct [:module, parts: %{}, view: %{}, bindings: %{}]
 

@@ -85,74 +85,88 @@ defmodule ZeroCoupledWeb.Stories.CheckOut do
 
   def view(assigns) do
     ~H"""
-    <div class="max-w-lg mx-auto px-6 py-6">
-      <.link navigate={~p"/cart"} class="text-sm text-zinc-500 hover:underline">{@t.back}</.link>
-      <h1 class="text-3xl font-semibold py-4">{@t.heading}</h1>
+    <div class="mx-auto max-w-lg">
+      <.link navigate={~p"/cart"} class="text-sm font-medium text-stone-500 hover:text-stone-800">
+        {@t.back}
+      </.link>
+      <h1 class="py-4 text-3xl font-semibold tracking-tight">{@t.heading}</h1>
       <.milestones
         step={@story.view.step}
         milestones={@story.view.milestones}
         order={[:address, :payment, :processing, :error, :complete]}
       />
-      <.only_on current={@story.view.step} name={:address}>
-        <.simple_form
-          for={@story.view.form}
-          phx-change="validate_address"
-          phx-submit="submit_address"
-        >
-          <.input
-            field={@story.view.form[:name]}
-            label={@t.name}
-            phx-hook="AutoFocus"
-            id="address_name"
-          />
-          <.input field={@story.view.form[:line1]} label={@t.line1} />
-          <.input field={@story.view.form[:city]} label={@t.city} />
-          <.input field={@story.view.form[:postal_code]} label={@t.postal_code} />
-          <:actions>
-            <.button phx-disable-with={@t.saving}>{@t.continue}</.button>
-          </:actions>
-        </.simple_form>
-      </.only_on>
-      <.only_on current={@story.view.step} name={:payment}>
-        <div class="space-y-4">
-          <div class="rounded border p-4 text-sm text-zinc-700">
-            <div class="font-medium">{@story.view.address.name}</div>
-            <div>{@story.view.address.line1}</div>
-            <div>{@story.view.address.city}, {@story.view.address.postal_code}</div>
-          </div>
-          <div class="flex justify-between font-bold text-xl border-t pt-4">
-            <span>{@t.total}</span><span>{@story.view.summary.total}</span>
-          </div>
-          <div class="flex gap-3">
-            <button phx-click="edit_address" class="text-sm text-zinc-500 underline">
-              {@t.edit_address}
-            </button>
-            <.primary_button event="pay">{@t.pay} {@story.view.summary.total}</.primary_button>
-          </div>
-        </div>
-      </.only_on>
-      <.only_on current={@story.view.step} name={:processing}>
-        <div class="flex items-center gap-3 text-zinc-500 py-6">
-          <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      <.card>
+        <.only_on current={@story.view.step} name={:address}>
+          <.simple_form
+            for={@story.view.form}
+            phx-change="validate_address"
+            phx-submit="submit_address"
+          >
+            <.input
+              field={@story.view.form[:name]}
+              label={@t.name}
+              phx-hook="AutoFocus"
+              id="address_name"
             />
-          </svg>
-          {@t.processing}
-        </div>
-      </.only_on>
-      <.only_on current={@story.view.step} name={:error}>
-        <div class="space-y-3">
-          <p class="text-red-600 text-sm">{@t.payment_failed}</p>
-          <.primary_button event="pay">{@t.try_again}</.primary_button>
-        </div>
-      </.only_on>
-      <.only_on current={@story.view.step} name={:complete}>
-        <p class="text-zinc-500 py-6">{@t.redirecting}</p>
-      </.only_on>
+            <.input field={@story.view.form[:line1]} label={@t.line1} />
+            <.input field={@story.view.form[:city]} label={@t.city} />
+            <.input field={@story.view.form[:postal_code]} label={@t.postal_code} />
+            <:actions>
+              <.button phx-disable-with={@t.saving}>{@t.continue}</.button>
+            </:actions>
+          </.simple_form>
+        </.only_on>
+        <.only_on current={@story.view.step} name={:payment}>
+          <div class="space-y-4">
+            <div class="rounded-xl bg-stone-50 p-4 text-sm text-stone-700">
+              <div class="font-medium">{@story.view.address.name}</div>
+              <div>{@story.view.address.line1}</div>
+              <div>{@story.view.address.city}, {@story.view.address.postal_code}</div>
+            </div>
+            <div class="flex justify-between border-t border-stone-200 pt-4 text-lg font-semibold">
+              <span>{@t.total}</span><span>{@story.view.summary.total}</span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <button
+                phx-click="edit_address"
+                class="text-sm font-medium text-stone-500 hover:text-stone-800"
+              >
+                {@t.edit_address}
+              </button>
+              <.primary_button event="pay">{@t.pay} {@story.view.summary.total}</.primary_button>
+            </div>
+          </div>
+        </.only_on>
+        <.only_on current={@story.view.step} name={:processing}>
+          <div class="flex items-center gap-3 py-6 text-stone-500">
+            <svg class="h-5 w-5 animate-spin text-brand-700" viewBox="0 0 24 24" fill="none">
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            {@t.processing}
+          </div>
+        </.only_on>
+        <.only_on current={@story.view.step} name={:error}>
+          <div class="space-y-3">
+            <p class="rounded-xl bg-red-50 p-4 text-sm text-red-700">{@t.payment_failed}</p>
+            <.primary_button event="pay">{@t.try_again}</.primary_button>
+          </div>
+        </.only_on>
+        <.only_on current={@story.view.step} name={:complete}>
+          <p class="py-6 text-stone-500">{@t.redirecting}</p>
+        </.only_on>
+      </.card>
     </div>
     """
   end

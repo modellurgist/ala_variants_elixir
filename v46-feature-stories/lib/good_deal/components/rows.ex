@@ -28,14 +28,15 @@ defmodule GoodDeal.Components.Rows do
     <.product_line id={@id} product={@row.product} cols="4rem_1fr_auto_auto" price_suffix={@t.each}>
       <:detail>
         <.stock_badge status={@row.stock_status} labels={@t.stock} />
-        <div class="flex items-center gap-3 mt-1">
-          <label class="flex items-center gap-1.5 text-xs text-zinc-500 cursor-pointer">
+        <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <label class="flex cursor-pointer items-center gap-1.5 text-xs text-stone-500">
             <input
               type="checkbox"
               checked={@row.gift_wrapped}
               phx-click={@on_gift_wrap}
               phx-target={@target}
               phx-value-item-id={@row.id}
+              class="rounded border-stone-300 text-brand-700 focus:ring-brand-600"
             />
             {@gift_wrap_label}
           </label>
@@ -44,51 +45,51 @@ defmodule GoodDeal.Components.Rows do
             phx-target={@target}
             phx-value-item-id={@row.id}
             label={@t.save}
-            class="text-xs text-blue-500"
+            class="text-xs font-medium text-stone-500 hover:text-stone-800"
           />
           <button
             phx-click={@on_wishlist}
             phx-target={@target}
             phx-value-item-id={@row.id}
-            class="text-xs"
+            class="text-xs font-medium"
           >
-            <span class={(@wishlisted && "text-red-500") || "text-zinc-400"}>
+            <span class={(@wishlisted && "text-rose-600") || "text-stone-500 hover:text-stone-800"}>
               {if @wishlisted, do: @t.wishlisted, else: @t.wishlist}
             </span>
           </button>
         </div>
       </:detail>
       <:actions>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center rounded-lg border border-stone-300">
           <button
             phx-click={@on_quantity}
             phx-target={@target}
             phx-value-item-id={@row.id}
             phx-value-delta="-1"
             disabled={@row.quantity <= 1}
-            class="w-8 h-8 rounded border text-lg font-bold disabled:opacity-30"
+            class="h-8 w-8 text-stone-600 hover:bg-stone-100 disabled:opacity-30"
           >
             -
           </button>
-          <span class="w-8 text-center font-mono">{@row.quantity}</span>
+          <span class="w-8 text-center text-sm tabular-nums">{@row.quantity}</span>
           <button
             phx-click={@on_quantity}
             phx-target={@target}
             phx-value-item-id={@row.id}
             phx-value-delta="1"
-            class="w-8 h-8 rounded border text-lg font-bold"
+            class="h-8 w-8 text-stone-600 hover:bg-stone-100"
           >
             +
           </button>
         </div>
-        <div class="text-right w-24">
-          <div class="font-semibold">{@row.line_total}</div>
+        <div class="w-24 text-right">
+          <div class="font-semibold tabular-nums">{@row.line_total}</div>
           <.action_button
             on={@on_remove}
             phx-target={@target}
             phx-value-item-id={@row.id}
             label={@t.remove}
-            class="text-xs text-red-500"
+            class="text-xs font-medium text-stone-400 hover:text-red-600"
           />
         </div>
       </:actions>
@@ -141,7 +142,7 @@ defmodule GoodDeal.Components.Rows do
           phx-target={@target}
           phx-value-product-id={@row.id}
           label={@t.remove}
-          class="text-sm font-medium text-red-500"
+          class="text-sm font-medium text-stone-400 hover:text-red-600"
         />
       </:actions>
     </.product_line>
@@ -170,17 +171,17 @@ defmodule GoodDeal.Components.Rows do
             name="quantity"
             value={@row.quantity}
             min="1"
-            class="w-20 rounded border border-zinc-300 px-2 py-1 text-sm text-right"
+            class="w-20 rounded-lg border-stone-300 px-2 py-1.5 text-right text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
           />
         </form>
-        <div class="text-right w-24">
-          <div class="font-semibold">{@row.line_total}</div>
+        <div class="w-24 text-right">
+          <div class="font-semibold tabular-nums">{@row.line_total}</div>
           <.action_button
             on={@on_remove}
             phx-target={@target}
             phx-value-item-id={@row.id}
             label={@t.remove}
-            class="text-xs text-red-500"
+            class="text-xs font-medium text-stone-400 hover:text-red-600"
           />
         </div>
       </:actions>
@@ -209,12 +210,12 @@ defmodule GoodDeal.Components.Rows do
             name="quantity"
             value={@t.default_quantity}
             min="1"
-            class="w-20 rounded border border-zinc-300 px-2 py-1 text-sm text-right"
+            class="w-20 rounded-lg border-stone-300 px-2 py-1.5 text-right text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
           />
           <button
             type="submit"
             disabled={@row.stock_status == :out_of_stock}
-            class="rounded bg-zinc-900 text-white px-3 py-1.5 text-sm font-medium disabled:opacity-40"
+            class="rounded-lg bg-brand-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:bg-stone-300"
           >
             {@t.add}
           </button>
@@ -241,12 +242,18 @@ defmodule GoodDeal.Components.Rows do
       assign(assigns, :reached, Enum.take_while(order, &(&1 != assigns.step)) ++ [assigns.step])
 
     ~H"""
-    <ol class="flex gap-4 text-sm mb-6">
-      <li
-        :for={{s, label} <- @milestones}
-        class={["font-medium", (s in @reached && "text-zinc-900") || "text-zinc-400"]}
-      >
-        {label}
+    <ol class="mb-8 flex items-center gap-3 text-sm">
+      <li :for={{{s, label}, i} <- Enum.with_index(@milestones, 1)} class="flex items-center gap-3">
+        <span :if={i > 1} class={["h-px w-8", (s in @reached && "bg-brand-600") || "bg-stone-300"]} />
+        <span class={[
+          "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+          (s in @reached && "bg-brand-700 text-white") || "bg-stone-200 text-stone-500"
+        ]}>
+          {i}
+        </span>
+        <span class={["font-medium", (s in @reached && "text-stone-900") || "text-stone-400"]}>
+          {label}
+        </span>
       </li>
     </ol>
     """
@@ -258,26 +265,28 @@ defmodule GoodDeal.Components.Rows do
 
   def order_summary(assigns) do
     ~H"""
-    <div class="space-y-1 py-4 border-t mt-4 text-sm">
-      <div class="flex justify-between text-zinc-600">
-        <span>{@t.items}</span><span>{@summary.item_count}</span>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between text-stone-600">
+        <dt>{@t.items}</dt>
+        <dd>{@summary.item_count}</dd>
       </div>
-      <div class="flex justify-between text-zinc-600">
-        <span>{@t.subtotal}</span><span>{@summary.subtotal}</span>
+      <div class="flex justify-between text-stone-600">
+        <dt>{@t.subtotal}</dt>
+        <dd>{@summary.subtotal}</dd>
       </div>
-      <div :if={@summary.tier_label} class="flex justify-between text-green-700">
-        <span>{@summary.tier_label}</span><span>-{@summary.discount}</span>
+      <div :if={@summary.tier_label} class="flex justify-between text-brand-700">
+        <dt>{@summary.tier_label}</dt>
+        <dd>-{@summary.discount}</dd>
       </div>
-      <div class="flex justify-between text-zinc-600">
-        <span>{@t.shipping} ({@summary.shipping_label})</span>
-        <span>
-          {if Money.zero?(@summary.shipping_cost), do: @t.free, else: @summary.shipping_cost}
-        </span>
+      <div class="flex justify-between text-stone-600">
+        <dt>{@t.shipping} ({@summary.shipping_label})</dt>
+        <dd>{if Money.zero?(@summary.shipping_cost), do: @t.free, else: @summary.shipping_cost}</dd>
       </div>
-      <div class="flex justify-between items-center py-2 border-t font-bold text-lg">
-        <span>{@t.total}</span><span>{@summary.total}</span>
+      <div class="flex items-center justify-between border-t border-stone-200 pt-3 text-lg font-semibold text-stone-900">
+        <dt>{@t.total}</dt>
+        <dd>{@summary.total}</dd>
       </div>
-    </div>
+    </dl>
     """
   end
 end
