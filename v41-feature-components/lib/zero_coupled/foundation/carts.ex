@@ -76,7 +76,7 @@ defmodule ZeroCoupled.Foundation.Carts do
     |> Repo.update()
   end
 
-  @doc "Apply a change a cart feature announces on its persist port."
+  @doc "Apply a change a cart feature sends the page on its persist port."
   def apply_change({:quantity, cart_id, item_id, quantity}),
     do: update_quantity(cart_id, item_id, quantity)
 

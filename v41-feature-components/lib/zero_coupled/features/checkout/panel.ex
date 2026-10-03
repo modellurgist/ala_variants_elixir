@@ -3,7 +3,7 @@ defmodule ZeroCoupled.Features.Checkout.Panel do
   Checkout as a UI instance: the step screens, the address form, the payment job and the order
   it places when paid. Config: `cart_id`, `pricing` (a `Pricing`), `store` (the cart store),
   `stock_levels` (a read function), `place_order` (a `PlaceOrder`), `flow`, `start`, `url_edges`, `milestones`, `gateway`, `urls`, `requested_step` (from the URL; honoured only along
-  `url_edges`). Announces `{:checkout, :blocked, reason}` and `{:checkout, :step, step}`.
+  `url_edges`). Sends the page `{:checkout, :blocked, reason}` and `{:checkout, :step, step}`.
   """
   use ZeroCoupledWeb, :live_component
   import ZeroCoupled.Catalog.Rows, only: [milestones: 1]
@@ -12,8 +12,8 @@ defmodule ZeroCoupled.Features.Checkout.Panel do
   alias ZeroCoupled.Features.Checkout
   alias ZeroCoupledWeb.Paradigms.Instance
 
-  @doc "The ports this instance announces, as `{:checkout, port, payload}`."
-  def announces, do: [:step, :blocked]
+  @doc "The ports this instance sends the page, as `{:checkout, port, payload}`."
+  def sent_port_outputs, do: [:step, :blocked]
 
   def update(assigns, s), do: {:ok, s |> assign(assigns) |> ensure_started() |> follow_url()}
 
@@ -64,21 +64,21 @@ defmodule ZeroCoupled.Features.Checkout.Panel do
   def handle_async(:payment, {:exit, reason}, s),
     do: {:noreply, step(s, &Checkout.failed(&1, reason))}
 
-  defp step(s, fun), do: Instance.step(s, fun, &land/2)
+  defp step(s, fun), do: Instance.step(s, fun, &wire/2)
 
-  defp land(s, {:step, step} = out),
-    do: s |> assign(step: step) |> Instance.announce(:checkout, out)
+  defp wire(s, {:step, step} = out),
+    do: s |> assign(step: step) |> Instance.send_port_output(:checkout, out)
 
-  defp land(s, {:form, changeset}),
+  defp wire(s, {:form, changeset}),
     do: assign(s, address_form: to_form(changeset, action: :validate))
 
-  defp land(s, {:address, address}), do: assign(s, address: address)
+  defp wire(s, {:address, address}), do: assign(s, address: address)
 
-  defp land(s, {:payment, {line_items, cart_id}}),
+  defp wire(s, {:payment, {line_items, cart_id}}),
     do: start_async(s, :payment, fn -> charge(s.assigns, line_items, cart_id) end)
 
-  defp land(s, {:done, url}), do: redirect(finalize(s), external: url)
-  defp land(s, out), do: Instance.announce(s, :checkout, out)
+  defp wire(s, {:done, url}), do: redirect(finalize(s), external: url)
+  defp wire(s, out), do: Instance.send_port_output(s, :checkout, out)
 
   defp load_cart(%{cart_id: cart_id, pricing: pricing, store: store}),
     do: Cart.new(cart_id: cart_id, items: store.list_items(cart_id), pricing: pricing)

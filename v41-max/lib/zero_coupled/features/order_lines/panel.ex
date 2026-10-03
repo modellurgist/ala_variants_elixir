@@ -1,35 +1,27 @@
 defmodule ZeroCoupled.Features.OrderLines.Panel do
   @moduledoc """
   The bulk-order draft as a UI instance: its lines, totals and the review button, owning their
-  events and its persistence. Config: `cart_id`, `pricing` (a `Pricing`), `store` (the cart store),
-  `add_line` (an `AddLine`), `empty_text`. Inputs: `add: {product,
-  quantity}`, `receive: item`, `confirm_removal: id`, `set_stock: change`. Announces `{:order,
-  :summary, _}`, `{:order, :removed, item}`, `{:order, :review, summary}`.
+  events. It loads through `source`, a read the page wires in, and sends every change out for the
+  page to store. Config: `cart_id`, `pricing` (a `Pricing`), `source`, `empty_text`. Inputs:
+  `add: {line, quantity}`, `receive: item`, `confirm_removal: id`, `set_stock: change`. Sends the
+  page `{:order, :summary, _}`, `{:order, :removed, item}`, `{:order, :changed, change}`,
+  `{:order, :review, summary}`.
   """
   use ZeroCoupledWeb, :live_component
   import ZeroCoupled.Catalog.Rows
-  alias ZeroCoupled.Domain.AddLine
   alias ZeroCoupled.Features.OrderLines
   alias ZeroCoupledWeb.Paradigms.Instance
 
-  # outputs this instance shows itself; every other port its feature declares is announced
-  @lands_only [:rows, :changed]
+  # outputs this instance shows itself; every other port its feature declares is sent
+  @wired_here [:rows]
 
-  @doc "The ports this instance announces, as `{name, port, payload}`. `:review` is the panel's own (the review button), not a feature port."
-  def announces, do: Keyword.keys(OrderLines.ports().out) -- (@lands_only ++ [:review])
+  @doc "The ports this instance sends the page, as `{name, port, payload}`. `:review` is the panel's own (the review button), not a feature port."
+  def sent_port_outputs, do: Keyword.keys(OrderLines.ports().out) -- (@wired_here ++ [:review])
 
   def mount(socket), do: {:ok, stream(socket, :order_lines, [])}
 
-  def update(%{add: {product, quantity}}, s),
-    do:
-      {:ok,
-       step(
-         s,
-         &OrderLines.add(
-           &1,
-           {AddLine.run(s.assigns.add_line, product), quantity}
-         )
-       )}
+  def update(%{add: {line, quantity}}, s),
+    do: {:ok, step(s, &OrderLines.add(&1, {line, quantity}))}
 
   def update(%{receive: item}, s), do: {:ok, step(s, &OrderLines.receive(&1, item))}
   def update(%{confirm_removal: id}, s), do: {:ok, step(s, &OrderLines.confirm_removal(&1, id))}
@@ -38,10 +30,10 @@ defmodule ZeroCoupled.Features.OrderLines.Panel do
 
   defp ensure_loaded(%{assigns: %{state: _}} = s), do: s
 
-  defp ensure_loaded(%{assigns: %{cart_id: cart_id, pricing: pricing, store: store}} = s) do
+  defp ensure_loaded(%{assigns: %{cart_id: cart_id, pricing: pricing, source: source}} = s) do
     s
     |> assign(state: OrderLines.new(cart_id: cart_id, pricing: pricing))
-    |> step(&OrderLines.load(&1, store.list_items(cart_id)))
+    |> step(&OrderLines.load(&1, source.(cart_id)))
   end
 
   def handle_event("set_line_quantity", %{"item-id" => id, "quantity" => q}, s),
@@ -51,24 +43,17 @@ defmodule ZeroCoupled.Features.OrderLines.Panel do
     do: {:noreply, step(s, &OrderLines.remove(&1, %{item_id: int(id)}))}
 
   def handle_event("go_review", _, s),
-    do: {:noreply, Instance.announce(s, :order, {:review, s.assigns.summary})}
+    do: {:noreply, Instance.send_port_output(s, :order, {:review, s.assigns.summary})}
 
-  defp step(s, fun), do: Instance.step(s, fun, &land/2)
-  defp land(s, {:rows, {:reset, rows}}), do: stream(s, :order_lines, rows, reset: true)
-  defp land(s, {:rows, {:removed, row}}), do: stream_delete(s, :order_lines, row)
-  defp land(s, {:rows, {_, row}}), do: stream_insert(s, :order_lines, row)
+  defp step(s, fun), do: Instance.step(s, fun, &wire/2)
+  defp wire(s, {:rows, {:reset, rows}}), do: stream(s, :order_lines, rows, reset: true)
+  defp wire(s, {:rows, {:removed, row}}), do: stream_delete(s, :order_lines, row)
+  defp wire(s, {:rows, {_, row}}), do: stream_insert(s, :order_lines, row)
 
-  defp land(s, {:summary, summary} = out),
-    do: s |> assign(summary: summary) |> Instance.announce(:order, out)
+  defp wire(s, {:summary, summary} = out),
+    do: s |> assign(summary: summary) |> Instance.send_port_output(:order, out)
 
-  defp land(s, {:changed, change}),
-    do:
-      (
-        s.assigns.store.apply_change(change)
-        s
-      )
-
-  defp land(s, out), do: Instance.announce(s, :order, out)
+  defp wire(s, out), do: Instance.send_port_output(s, :order, out)
 
   defp int(str), do: String.to_integer(str)
 

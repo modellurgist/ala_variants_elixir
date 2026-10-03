@@ -1,10 +1,10 @@
 defmodule ZeroCoupledWeb.CartPage do
   @moduledoc """
   The cart page in the shape `phx.gen.live` produces: the template places the feature instances
-  and configures them; one route table says where each instance's announcement goes and what the
+  and configures them; one route table says where each instance's port_output goes and what the
   page says about it. The store's words and numbers are the attributes; its
   pricing, stores and order placement are configured here once. There is no catch-all
-  `handle_info`: a message the page doesn't route crashes it, and a test sends every announced
+  `handle_info`: a message the page doesn't route crashes it, and a test sends every sent
   port to catch a missing clause before a user does.
   """
   use ZeroCoupledWeb, :live_view
@@ -17,6 +17,7 @@ defmodule ZeroCoupledWeb.CartPage do
     CalculateGiftWrapCost,
     CalculateShipping,
     PlaceOrder,
+    StartPayment,
     StockStatus,
     ValidatePromo
   }
@@ -99,15 +100,23 @@ defmodule ZeroCoupledWeb.CartPage do
          promo: ValidatePromo.new(@promo_codes),
          gift_wrap: CalculateGiftWrapCost.new(@gift_wrap_unit)
        },
-       add_line: %AddLine{carts: Carts, products: Products, cart_id: cart_id},
+       instances: %{
+         add_line: %AddLine{carts: Carts, products: Products, cart_id: cart_id},
+         place_order: %PlaceOrder{
+           orders: Orders,
+           carts: Carts,
+           products: Products,
+           announce: &Broadcast.stock_changed/2,
+           cart_id: cart_id
+         },
+         payment: %StartPayment{
+           gateway: Application.get_env(:zero_coupled, :payment_gateway, LedgerGateway),
+           urls: %{success_url: url(~p"/cart/success"), cancel_url: url(~p"/cart")},
+           cart_key: CartSession.cart_key()
+         }
+       },
        line_items: BuildLineItems.new(currency: StoreConfig.currency()),
        form_messages: %{postal_code: "must be 4–10 digits"},
-       place_order: %PlaceOrder{
-         orders: Orders,
-         carts: Carts,
-         products: Products,
-         announce: &Broadcast.stock_changed/2
-       },
        active_tab: :items,
        cart_summary: %{item_count: 0, empty?: true},
        saved_count: 0,
@@ -117,9 +126,7 @@ defmodule ZeroCoupledWeb.CartPage do
        undo_window_ms: StoreConfig.undo_window_ms(),
        checkout_flow: @checkout_flow,
        checkout_url_edges: @checkout_url_edges,
-       milestones: @milestones,
-       gateway: Application.get_env(:zero_coupled, :payment_gateway, LedgerGateway),
-       urls: %{success_url: url(~p"/cart/success"), cancel_url: url(~p"/cart")}
+       milestones: @milestones
      )}
   end
 
@@ -137,6 +144,7 @@ defmodule ZeroCoupledWeb.CartPage do
 
   @routes %{
     {:cart, :summary} => [assign: :cart_summary],
+    {:cart, :changed} => [call: &Carts.apply_change/1],
     {:cart, :removed} => [pass: {Undo.Banner, "undo", :capture}],
     {:cart, :saved} => [
       pass: {SavedItems.Panel, "saved", :stash},
@@ -155,20 +163,24 @@ defmodule ZeroCoupledWeb.CartPage do
     {:wishlist, :added} => [flash: {:info, "Added to wishlist"}],
     {:wishlist, :dropped} => [flash: {:info, "Removed from wishlist"}],
     {:wishlist, :taken} => [
-      pass: {Cart.Panel, "cart", :add_product},
+      feed: {:add_line, &AddLine.run/2, {Cart.Panel, "cart", :receive}},
       flash: {:info, "Added to cart"}
     ],
     {:checkout, :blocked} => [flash_by: {:error, @blocked}],
+    {:checkout, :ready_to_pay} => [async: {:payment, :payment, &StartPayment.call/2}],
+    {:payment, :succeeded} => [pass: {Checkout.Panel, "checkout", :succeeded}],
+    {:payment, :failed} => [pass: {Checkout.Panel, "checkout", :failed}],
+    {:checkout, :done} => [call: {:place_order, &PlaceOrder.place/2}, redirect: true],
     {:checkout, :step} => [patch: @step_paths],
     {:stock, :changed} => [pass: {Cart.Panel, "cart", :set_stock}]
   }
 
-  @doc "The page's wiring: where each instance's announcement goes."
+  @doc "The page's wiring: where each instance's port output goes."
   def routes, do: @routes
 
   @impl true
-  def handle_info({_name, _port, _payload} = announcement, socket),
-    do: {:noreply, Instance.route(socket, @routes, announcement)}
+  def handle_info({_name, _port, _payload} = port_output, socket),
+    do: {:noreply, Instance.route(socket, @routes, port_output)}
 
   def handle_info(%Broadcast.Facts.StockChanged{} = change, socket),
     do: {:noreply, Instance.route(socket, @routes, {:stock, :changed, change})}
@@ -176,7 +188,18 @@ defmodule ZeroCoupledWeb.CartPage do
   # the storefront topic also carries product edits, which this page doesn't show
   def handle_info(%Broadcast.Facts.ProductSaved{}, socket), do: {:noreply, socket}
 
-  # the cart's instances stay mounted behind the checkout, so nothing announced while paying is lost
+  # the payment job runs on the page; its outcome goes back to checkout like any port output
+  @impl true
+  def handle_async(:payment, {:ok, {:ok, url}}, socket),
+    do: {:noreply, Instance.route(socket, @routes, {:payment, :succeeded, url})}
+
+  def handle_async(:payment, {:ok, {:error, reason}}, socket),
+    do: {:noreply, Instance.route(socket, @routes, {:payment, :failed, reason})}
+
+  def handle_async(:payment, {:exit, reason}, socket),
+    do: {:noreply, Instance.route(socket, @routes, {:payment, :failed, reason})}
+
+  # the cart's instances stay mounted behind the checkout, so nothing sent while paying is lost
   @impl true
   def render(assigns) do
     ~H"""
@@ -200,8 +223,7 @@ defmodule ZeroCoupledWeb.CartPage do
           id="cart"
           cart_id={@cart_id}
           pricing={@pricing}
-          store={Carts}
-          add_line={@add_line}
+          source={&Carts.list_items/1}
           wishlist_ids={@wishlist_ids}
           gift_wrap_label={@texts.cart.gift_wrap_label}
           empty_text="Your cart is empty."
@@ -249,19 +271,15 @@ defmodule ZeroCoupledWeb.CartPage do
           id="checkout"
           cart_id={@cart_id}
           pricing={@pricing}
-          store={Carts}
+          source={&Carts.list_items/1}
           stock_levels={&Products.stock_levels/1}
           line_items={@line_items}
           messages={@form_messages}
-          place_order={@place_order}
-          cart_key={CartSession.cart_key()}
           flow={@checkout_flow}
           start={:address}
           url_edges={@checkout_url_edges}
           milestones={@milestones}
           requested_step={@requested_step}
-          gateway={@gateway}
-          urls={@urls}
           t={@texts.checkout}
         />
       </div>

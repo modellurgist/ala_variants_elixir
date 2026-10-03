@@ -1,0 +1,50 @@
+<.header>
+  <.link
+    navigate={~p"/products"}
+    class="text-sm font-semibold leading-6 text-zinc-900 hover:text-zinc-700"
+  >
+    <.icon name="hero-arrow-left-solid" class="h-3 w-3" /> Back to products
+  </.link>
+  <:actions>
+    <.link patch={~p"/products/#{@product}/show/edit"} phx-click={JS.push_focus()}>
+      <.button>Edit product</.button>
+    </.link>
+  </:actions>
+</.header>
+
+<div class="grid grid-cols-2 gap-16 p-4">
+  <img
+    class="grow object-contain"
+    src={@product.thumbnail}
+    title={@product.name}
+    alt={@product.name}
+  />
+  <div class="pt-8">
+    <h1 class="text-4xl pb-2">{@product.name}</h1>
+    <div class="text-gray-500 pb-8">{@product.description}</div>
+    <div class="font-bold text-5xl pb-4">{Money.new(@product.amount)}</div>
+    <div>{@product.stock} remaining</div>
+  </div>
+</div>
+
+<.only_on current={@live_action} name={:edit}>
+  <.modal
+    id="product-modal"
+    show
+    on_cancel={JS.patch(~p"/products/#{@product}")}
+  >
+    <.live_component
+      module={ZeroCoupled.Catalog.RecordForm}
+      id={@form_text.id}
+      name={:product_form}
+      record={@product}
+      action={@live_action}
+      changeset={&ZeroCoupled.Foundation.Products.changeset/2}
+      fields={@form_text.fields}
+      title={@page_title}
+      subtitle={@form_text.subtitle}
+      submit={@form_text.submit}
+      saving={@form_text.saving}
+    />
+  </.modal>
+</.only_on>

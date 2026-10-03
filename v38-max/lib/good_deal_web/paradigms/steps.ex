@@ -1,8 +1,8 @@
 defmodule GoodDealWeb.Paradigms.Steps do
   @moduledoc """
   Runs one step of a feature held in the socket's assigns under `key`, stores its new value, and
-  lands each port output through the page's own function: `land.(socket, key, {port, payload})`.
-  The page's `land/3` clauses are then its wiring, one clause per port. `feed/6` runs an input on
+  wires each port output through the page's own function: `wire.(socket, key, {port, payload})`.
+  The page's `wire/3` clauses are then its wiring, one clause per port. `feed/6` runs an input on
   what a source answers for a payload (a store read, a configured instance's I/O; a source
   of no arguments is a plain read), so a clause
   never nests one call's result inside another. Also a stream change and a named timer. Knows
@@ -11,13 +11,13 @@ defmodule GoodDealWeb.Paradigms.Steps do
   import Phoenix.LiveView, only: [stream: 4, stream_insert: 3, stream_delete: 3, push_patch: 2]
   import Phoenix.Component, only: [assign: 3]
 
-  def run(socket, key, step, land) do
+  def run(socket, key, step, wire) do
     {state, outputs} = step.(socket.assigns[key])
-    Enum.reduce(outputs, assign(socket, key, state), &land.(&2, key, &1))
+    Enum.reduce(outputs, assign(socket, key, state), &wire.(&2, key, &1))
   end
 
-  def feed(socket, key, input, source, payload, land),
-    do: run(socket, key, &input.(&1, ask(source, payload)), land)
+  def feed(socket, key, input, source, payload, wire),
+    do: run(socket, key, &input.(&1, ask(source, payload)), wire)
 
   defp ask(source, payload) when is_function(source, 1), do: source.(payload)
   defp ask(source, _payload) when is_function(source, 0), do: source.()

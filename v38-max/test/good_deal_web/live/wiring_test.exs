@@ -1,19 +1,19 @@
 defmodule GoodDealWeb.WiringTest do
   use ExUnit.Case, async: true
 
-  # each page's land/3 clauses are its wiring; read their heads from the source
+  # each page's wire/3 clauses are its wiring; read their heads from the source
   @pages [
     {GoodDealWeb.CartLive.Show, "lib/good_deal_web/live/cart_live/show.ex"},
     {GoodDealWeb.PortalLive.Show, "lib/good_deal_web/live/portal_live/show.ex"}
   ]
 
-  defp landed(source) do
+  defp wired(source) do
     {_, heads} =
       source
       |> File.read!()
       |> Code.string_to_quoted!()
       |> Macro.prewalk([], fn
-        {:defp, _, [{:land, _, [_, key, {port, _}]} | _]} = node, acc ->
+        {:defp, _, [{:wire, _, [_, key, {port, _}]} | _]} = node, acc ->
           {node, [{key, port} | acc]}
 
         node, acc ->
@@ -24,18 +24,18 @@ defmodule GoodDealWeb.WiringTest do
   end
 
   for {page, source} <- @pages do
-    test "#{inspect(page)}: every declared output port has a land clause" do
-      landed = landed(unquote(source))
+    test "#{inspect(page)}: every declared output port has a wire clause" do
+      wired = wired(unquote(source))
 
       for {key, feature} <- unquote(page).features(), port <- Keyword.keys(feature.ports().out) do
-        assert {key, port} in landed, "#{inspect(feature)} port #{port} has no land clause"
+        assert {key, port} in wired, "#{inspect(feature)} port #{port} has no wire clause"
       end
     end
 
-    test "#{inspect(page)}: every land clause names a declared port" do
+    test "#{inspect(page)}: every wire clause names a declared port" do
       features = unquote(page).features()
 
-      for {key, port} <- landed(unquote(source)) do
+      for {key, port} <- wired(unquote(source)) do
         assert port in Keyword.keys(features[key].ports().out), "no port #{inspect({key, port})}"
       end
     end

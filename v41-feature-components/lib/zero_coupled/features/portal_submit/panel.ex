@@ -2,7 +2,7 @@ defmodule ZeroCoupled.Features.PortalSubmit.Panel do
   @moduledoc """
   The review and confirmation screens as a UI instance: the PO form, and the order it places
   when approved. Config: `cart_id`, `place_order` (a `PlaceOrder`), `flow`, `start`, `url_edges`, `summary`,
-  `requested_step`. Input: `review: summary`. Announces `{:submit, :step, step}`,
+  `requested_step`. Input: `review: summary`. Sends the page `{:submit, :step, step}`,
   `{:submit, :blocked, reason}`, `{:submit, :reference, order_id}`.
   """
   use ZeroCoupledWeb, :live_component
@@ -11,8 +11,8 @@ defmodule ZeroCoupled.Features.PortalSubmit.Panel do
   alias ZeroCoupled.Features.PortalSubmit
   alias ZeroCoupledWeb.Paradigms.Instance
 
-  @doc "The ports this instance announces, as `{:submit, port, payload}`."
-  def announces, do: [:step, :blocked, :reference]
+  @doc "The ports this instance sends the page, as `{:submit, port, payload}`."
+  def sent_port_outputs, do: [:step, :blocked, :reference]
 
   def update(%{review: summary}, s), do: {:ok, step(s, &PortalSubmit.review(&1, summary))}
   def update(assigns, s), do: {:ok, s |> assign(assigns) |> ensure_started() |> follow_url()}
@@ -45,20 +45,20 @@ defmodule ZeroCoupled.Features.PortalSubmit.Panel do
 
   def handle_event("edit_lines", _, s), do: {:noreply, step(s, &PortalSubmit.edit_lines(&1, nil))}
 
-  defp step(s, fun), do: Instance.step(s, fun, &land/2)
+  defp step(s, fun), do: Instance.step(s, fun, &wire/2)
 
-  defp land(s, {:step, step} = out),
-    do: s |> assign(step: step) |> Instance.announce(:submit, out)
+  defp wire(s, {:step, step} = out),
+    do: s |> assign(step: step) |> Instance.send_port_output(:submit, out)
 
-  defp land(s, {:form, changeset}), do: assign(s, po_form: to_form(changeset, action: :validate))
+  defp wire(s, {:form, changeset}), do: assign(s, po_form: to_form(changeset, action: :validate))
 
-  defp land(s, {:approved, po}),
+  defp wire(s, {:approved, po}),
     do: s |> assign(po: po) |> step(&PortalSubmit.complete(&1, place_order(s.assigns)))
 
-  defp land(s, {:reference, id} = out),
-    do: s |> assign(order_id: id) |> Instance.announce(:submit, out)
+  defp wire(s, {:reference, id} = out),
+    do: s |> assign(order_id: id) |> Instance.send_port_output(:submit, out)
 
-  defp land(s, out), do: Instance.announce(s, :submit, out)
+  defp wire(s, out), do: Instance.send_port_output(s, :submit, out)
 
   defp place_order(%{place_order: place_order, cart_id: cart_id}) do
     {:ok, order} = PlaceOrder.run(place_order, cart_id)

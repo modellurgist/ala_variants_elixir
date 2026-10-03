@@ -1,24 +1,27 @@
 defmodule ZeroCoupled.Features.Checkout.Panel do
   @moduledoc """
-  Checkout as a UI instance: the step screens, the address form, the payment job and the order
-  it places when paid. Config: `cart_id`, `pricing` (a `Pricing`), `store` (the cart store),
-  `stock_levels` (a read function), `line_items` (a `BuildLineItems`), `messages` (the
-  address form's), `place_order` (a `PlaceOrder`), `cart_key` (how payment metadata names the cart), `flow`, `start`, `url_edges`, `milestones`, `gateway`, `urls`, `requested_step` (from the URL; honoured only along
-  `url_edges`). Announces `{:checkout, :blocked, reason}` and `{:checkout, :step, step}`.
+  Checkout as a UI instance: the step screens and the address form. A cart ready to pay goes out
+  for the page to charge, the payment's outcome comes back as `succeeded` or `failed`, and a paid
+  cart goes out as `done` for the page to settle. Config: `cart_id`, `pricing` (a `Pricing`),
+  `source` (a read of the stored lines, wired by the page), `stock_levels` (a read function),
+  `line_items` (a `BuildLineItems`), `messages` (the address form's), `flow`, `start`,
+  `url_edges`, `milestones`, `requested_step` (from the URL; honoured only along `url_edges`).
+  Sends the page `{:checkout, port, payload}` for `:step`, `:blocked`, `:ready_to_pay`, `:done`.
   """
   use ZeroCoupledWeb, :live_component
   import ZeroCoupled.Catalog.Rows, only: [milestones: 1]
   alias ZeroCoupled.Cart
-  alias ZeroCoupled.Domain.PlaceOrder
   alias ZeroCoupled.Features.Checkout
   alias ZeroCoupledWeb.Paradigms.Instance
 
-  # outputs this instance shows itself; every other port its feature declares is announced
-  @lands_only [:form, :address, :ready_to_pay, :done]
+  # outputs this instance shows itself; every other port its feature declares is sent
+  @wired_here [:form, :address]
 
-  @doc "The ports this instance announces, as `{name, port, payload}`."
-  def announces, do: Keyword.keys(Checkout.ports().out) -- @lands_only
+  @doc "The ports this instance sends the page, as `{name, port, payload}`."
+  def sent_port_outputs, do: Keyword.keys(Checkout.ports().out) -- @wired_here
 
+  def update(%{succeeded: url}, s), do: {:ok, step(s, &Checkout.succeeded(&1, url))}
+  def update(%{failed: reason}, s), do: {:ok, step(s, &Checkout.failed(&1, reason))}
   def update(assigns, s), do: {:ok, s |> assign(assigns) |> ensure_started() |> follow_url()}
 
   defp ensure_started(%{assigns: %{state: _}} = s), do: s
@@ -61,42 +64,20 @@ defmodule ZeroCoupled.Features.Checkout.Panel do
   def handle_event("edit_address", _, s), do: {:noreply, step(s, &Checkout.edit_address(&1, nil))}
   def handle_event("pay", _, s), do: {:noreply, step(s, &Checkout.pay(&1, load_cart(s.assigns)))}
 
-  def handle_async(:payment, {:ok, {:ok, url}}, s),
-    do: {:noreply, step(s, &Checkout.succeeded(&1, url))}
+  defp step(s, fun), do: Instance.step(s, fun, &wire/2)
 
-  def handle_async(:payment, {:ok, {:error, reason}}, s),
-    do: {:noreply, step(s, &Checkout.failed(&1, reason))}
+  defp wire(s, {:step, step} = out),
+    do: s |> assign(step: step) |> Instance.send_port_output(:checkout, out)
 
-  def handle_async(:payment, {:exit, reason}, s),
-    do: {:noreply, step(s, &Checkout.failed(&1, reason))}
-
-  defp step(s, fun), do: Instance.step(s, fun, &land/2)
-
-  defp land(s, {:step, step} = out),
-    do: s |> assign(step: step) |> Instance.announce(:checkout, out)
-
-  defp land(s, {:form, changeset}),
+  defp wire(s, {:form, changeset}),
     do: assign(s, address_form: to_form(changeset, action: :validate))
 
-  defp land(s, {:address, address}), do: assign(s, address: address)
+  defp wire(s, {:address, address}), do: assign(s, address: address)
 
-  defp land(s, {:ready_to_pay, {line_items, cart_id}}),
-    do: start_async(s, :payment, fn -> charge(s.assigns, line_items, cart_id) end)
+  defp wire(s, out), do: Instance.send_port_output(s, :checkout, out)
 
-  defp land(s, {:done, url}), do: redirect(finalize(s), external: url)
-  defp land(s, out), do: Instance.announce(s, :checkout, out)
-
-  defp load_cart(%{cart_id: cart_id, pricing: pricing, store: store}),
-    do: Cart.new(cart_id: cart_id, items: store.list_items(cart_id), pricing: pricing)
-
-  defp charge(%{gateway: gateway, urls: urls, cart_key: key}, line_items, cart_id),
-    do: gateway.create_checkout_session(line_items, %{key => cart_id}, urls)
-
-  # paid: the order exists, the cart is complete, and every bought product's stock drops
-  defp finalize(%{assigns: %{cart_id: cart_id, place_order: place_order}} = s) do
-    {:ok, _order} = PlaceOrder.run(place_order, cart_id)
-    s
-  end
+  defp load_cart(%{cart_id: cart_id, pricing: pricing, source: source}),
+    do: Cart.new(cart_id: cart_id, items: source.(cart_id), pricing: pricing)
 
   def render(assigns) do
     ~H"""

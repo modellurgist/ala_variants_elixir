@@ -1,7 +1,7 @@
 defmodule ZeroCoupledWeb.CartLiveTest do
   @moduledoc """
   End-to-end tests of the cart page. A feature instance handles its own events at once, but
-  what it announces reaches another instance by two messages (instance → page → instance), so a
+  what it sends the page reaches another instance by two messages (instance → page → instance), so a
   test settles the page (two renders) after each action before reading it; async results are
   polled for.
   """

@@ -1,0 +1,67 @@
+<.header>
+  All Products
+  <:actions>
+    <.link patch={~p"/products/new"}>
+      <.button>New Product</.button>
+    </.link>
+  </:actions>
+</.header>
+
+<.stream_list
+  :let={{dom_id, product}}
+  class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-12 p-12 max-w-7xl mx-auto"
+  id="products"
+  stream={@streams.products}
+>
+  <div
+    id={dom_id}
+    class="flex flex-col bg-white hover:bg-gray-100 cursor-pointer border border-gray-400 shadow rounded-lg"
+    phx-click={JS.navigate(~p"/products/#{product}")}
+  >
+    <img
+      class="grow p-6 object-contain"
+      src={product.thumbnail}
+      title={product.name}
+      alt={product.name}
+    />
+    <div class="px-6 py-4 border-t border-gray-400">
+      <h3 class="text-lg leading-6 font-medium text-gray-900 pb-2">
+        {product.name}
+      </h3>
+      <p class="text-sm text-gray-500">{product.description}</p>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-400 flex items-center gap-2">
+      <.stock_indicator stock={product.stock} rule={@stock_status} labels={@stock_labels} />
+    </div>
+    <div class="p-6 py-4 border-t border-gray-400 text-xl">
+      <div class="flex flex-col items-left">
+        {Money.new(product.amount)}
+        <button
+          phx-click="add_to_cart"
+          phx-value-id={product.id}
+          class="focus:outline-none focus:shadow-outline text-sm bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 mt-2 rounded"
+        >
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  </div>
+</.stream_list>
+
+<.only_on current={@live_action} name={:new}>
+  <.modal id="product-modal" show on_cancel={JS.patch(~p"/products")}>
+    <.live_component
+      module={ZeroCoupled.Catalog.RecordForm}
+      id={@form_text.id}
+      name={:product_form}
+      record={@product}
+      action={@live_action}
+      changeset={&ZeroCoupled.Foundation.Products.changeset/2}
+      fields={@form_text.fields}
+      title={@page_title}
+      subtitle={@form_text.subtitle}
+      submit={@form_text.submit}
+      saving={@form_text.saving}
+    />
+  </.modal>
+</.only_on>

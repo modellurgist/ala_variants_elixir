@@ -17,13 +17,13 @@ rules and the generic components are V39-max's, reused unchanged apart from name
 Store work is V38-max's own configured instances: `Charge`, `SettleOrder`, `AddLine`, `PlaceOrder`.
 
 Each page (`CartLive.Show`, `PortalLive.Show`) is one plain LiveView. Each browser event runs one feature
-step; `Steps.run/4` folds every output through the page's `land/3`, one clause per port (29 on the cart
+step; `Steps.run/4` folds every output through the page's `wire/3`, one clause per port (29 on the cart
 page, 15 on the portal):
 
 ```elixir
-defp land(s, :cart, {:removed, item}), do: run(s, :undo, &Undo.capture(&1, item))
-defp land(s, :cart, {:checkout_requested, cart}), do: run(s, :checkout, &Checkout.pay(&1, cart))
-defp land(s, :checkout, {:step, step}), do: s |> assign(:step, step) |> Steps.patch(@step_paths, step)
+defp wire(s, :cart, {:removed, item}), do: run(s, :undo, &Undo.capture(&1, item))
+defp wire(s, :cart, {:checkout_requested, cart}), do: run(s, :checkout, &Checkout.pay(&1, cart))
+defp wire(s, :checkout, {:step, step}), do: s |> assign(:step, step) |> Steps.patch(@step_paths, step)
 ```
 
 There is no catch-all clause. `test/good_deal_web/live/wiring_test.exs` reads each page's clause heads and

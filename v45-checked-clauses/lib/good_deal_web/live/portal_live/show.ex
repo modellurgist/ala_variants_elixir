@@ -1,7 +1,7 @@
 defmodule GoodDealWeb.PortalLive.Show do
   @moduledoc """
   The B2B bulk-order portal: the same shape as the cart page over the same aggregate, domain
-  rules and undo feature, with its own features, pricing and flow, and its own `land/3` clauses.
+  rules and undo feature, with its own features, pricing and flow, and its own `wire/3` clauses.
   Its draft is a separate session cart.
   """
   use GoodDealWeb, :live_view
@@ -59,7 +59,7 @@ defmodule GoodDealWeb.PortalLive.Show do
     |> update_in([:submit], &Map.merge(&1, %{total: summary.total}))
   end
 
-  @doc "Which feature each `land/3` key names, so a test can check every declared port has a clause."
+  @doc "Which feature each `wire/3` key names, so a test can check every declared port has a clause."
   @features %{order: OrderLines, undo: Undo, catalog: PortalCatalog, flow: PortalSubmit}
   def features, do: @features
 
@@ -102,8 +102,8 @@ defmodule GoodDealWeb.PortalLive.Show do
      )
      |> stream(:order_lines, [])
      |> stream(:portal_products, [])
-     |> Steps.feed(:order, &OrderLines.load/2, &Carts.list_items/1, cart_id, &land/3)
-     |> Steps.feed(:catalog, &PortalCatalog.load/2, &Products.list/0, nil, &land/3)
+     |> Steps.feed(:order, &OrderLines.load/2, &Carts.list_items/1, cart_id, &wire/3)
+     |> Steps.feed(:catalog, &PortalCatalog.load/2, &Products.list/0, nil, &wire/3)
      |> run(:flow, &PortalSubmit.show_form(&1, nil))}
   end
 
@@ -159,39 +159,39 @@ defmodule GoodDealWeb.PortalLive.Show do
   def handle_info({:product_created, _product}, socket), do: {:noreply, socket}
   def handle_info({:product_updated, _product}, socket), do: {:noreply, socket}
 
-  defp run(socket, key, step), do: Steps.run(socket, key, step, &land/3)
+  defp run(socket, key, step), do: Steps.run(socket, key, step, &wire/3)
   defp int(s) when is_binary(s), do: String.to_integer(s)
   defp int(n) when is_integer(n), do: n
 
-  # {feature, port} → where it lands on this page
-  defp land(s, :order, {:rows, change}), do: Steps.stream_change(s, :order_lines, change)
-  defp land(s, :order, {:summary, summary}), do: assign(s, :summary, summary)
+  # {feature, port} → where it wires on this page
+  defp wire(s, :order, {:rows, change}), do: Steps.stream_change(s, :order_lines, change)
+  defp wire(s, :order, {:summary, summary}), do: assign(s, :summary, summary)
 
-  defp land(s, :order, {:changed, change}) do
+  defp wire(s, :order, {:changed, change}) do
     Carts.apply_change(change)
     s
   end
 
-  defp land(s, :order, {:removed, item}), do: run(s, :undo, &Undo.capture(&1, item))
-  defp land(s, :order, {:review, summary}), do: run(s, :flow, &PortalSubmit.review(&1, summary))
+  defp wire(s, :order, {:removed, item}), do: run(s, :undo, &Undo.capture(&1, item))
+  defp wire(s, :order, {:review, summary}), do: run(s, :flow, &PortalSubmit.review(&1, summary))
 
-  defp land(s, :undo, {:captured, item}),
+  defp wire(s, :undo, {:captured, item}),
     do:
       s |> assign(:undo_pending, true) |> Steps.start_timer(:undo, item, Catalog.undo_window_ms())
 
-  defp land(s, :undo, {:restored, item}),
+  defp wire(s, :undo, {:restored, item}),
     do:
       s
       |> Steps.stop_timer(:undo)
       |> assign(:undo_pending, false)
       |> run(:order, &OrderLines.receive(&1, item))
 
-  defp land(s, :undo, {:expired, item_id}),
+  defp wire(s, :undo, {:expired, item_id}),
     do: s |> assign(:undo_pending, false) |> run(:order, &OrderLines.confirm_removal(&1, item_id))
 
-  defp land(s, :catalog, {:rows, change}), do: Steps.stream_change(s, :portal_products, change)
+  defp wire(s, :catalog, {:rows, change}), do: Steps.stream_change(s, :portal_products, change)
 
-  defp land(s, :catalog, {:requested, request}),
+  defp wire(s, :catalog, {:requested, request}),
     do:
       s
       |> Steps.feed(
@@ -199,19 +199,19 @@ defmodule GoodDealWeb.PortalLive.Show do
         &OrderLines.add/2,
         {:add_line, &AddLine.run/2},
         request,
-        &land/3
+        &wire/3
       )
       |> put_flash(:info, "Added to order")
 
-  defp land(s, :flow, {:step, step}),
+  defp wire(s, :flow, {:step, step}),
     do: s |> assign(:step, step) |> Steps.patch(@step_paths, step)
 
-  defp land(s, :flow, {:form, changeset}),
+  defp wire(s, :flow, {:form, changeset}),
     do: assign(s, :po_form, to_form(changeset, action: :validate))
 
-  defp land(s, :flow, {:blocked, reason}), do: put_flash(s, :error, @blocked[reason])
+  defp wire(s, :flow, {:blocked, reason}), do: put_flash(s, :error, @blocked[reason])
 
-  defp land(s, :flow, {:approved, po}),
+  defp wire(s, :flow, {:approved, po}),
     do:
       s
       |> assign(:po, po)
@@ -220,10 +220,10 @@ defmodule GoodDealWeb.PortalLive.Show do
         &PortalSubmit.complete/2,
         {:place_order, &PlaceOrder.place/2},
         po,
-        &land/3
+        &wire/3
       )
 
-  defp land(s, :flow, {:reference, order_id}),
+  defp wire(s, :flow, {:reference, order_id}),
     do: s |> assign(:order_id, order_id) |> put_flash(:info, "Order submitted")
 
   @impl true

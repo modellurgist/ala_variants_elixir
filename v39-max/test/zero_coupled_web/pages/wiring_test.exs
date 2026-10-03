@@ -23,3 +23,14 @@ defmodule ZeroCoupledWeb.WiringTest do
     end
   end
 end
+
+defmodule ZeroCoupledWeb.DrawingTest do
+  use ExUnit.Case, async: true
+
+  test "the cart page's diagram is drawn from its bindings" do
+    chart = ZeroCoupledWeb.Paradigms.Drawing.mermaid(ZeroCoupledWeb.CartPage.bindings(1))
+    assert chart =~ ~s(cart -->|"removed → capture"| undo)
+    assert chart =~ ~s(wishlist -->|"taken via AddLine → receive"| cart)
+    assert chart =~ ~s(checkout -.->|"ready_to_pay"| payment["task StartPayment"])
+  end
+end

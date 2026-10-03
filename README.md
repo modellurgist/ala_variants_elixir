@@ -28,8 +28,8 @@ Spray's thermometer example, each runnable with `elixir`:
 | `v41-feature-components/` | [feature components](https://getdown.dev/blog/intro-to-v41-feature-components/) | The `phx.gen.live` shape: each feature a LiveComponent instance owning its state, stream, events and store writes; the page places, configures, and routes announcements with `send_update`; 18 lines of paradigm |
 | `v41-max/` | [V41-max](https://getdown.dev/blog/intro-to-v41-max/) | V41 taken to 100 on the full checklist: panels plus one route table per page; every word from the page; one hop per cross-feature effect |
 | `v39-max/` | [V39-max](https://getdown.dev/blog/intro-to-v39-max/) | V39 taken to 100: no page helpers, configured domain instances behind a `Call` port, a test that every port is bound or grounded; zero hops |
-| `v38-max/` | [V38-max](https://getdown.dev/blog/intro-to-v38-max/) | V38 taken to 100: one plain LiveView whose `land/3` clauses are the wiring, one per port; zero hops |
-| `v45-checked-clauses/` | [checked clauses](https://getdown.dev/blog/intro-to-v45-checked-clauses/) | 100 on the full checklist with zero hops: V38-max's `land/3` clauses with named instances, a one-line coverage test, and an optional compile-time wiring check |
+| `v38-max/` | [V38-max](https://getdown.dev/blog/intro-to-v38-max/) | V38 taken to 100: one plain LiveView whose `wire/3` clauses are the wiring, one per port; zero hops |
+| `v45-checked-clauses/` | [checked clauses](https://getdown.dev/blog/intro-to-v45-checked-clauses/) | 100 on the full checklist with zero hops: V38-max's `wire/3` clauses with named instances, a one-line coverage test, and an optional compile-time wiring check |
 | `coffee_maker/` | [coffee-maker LiveView](https://getdown.dev/blog/coffee-maker-liveview/) | The ALA coffee-maker domain (extracted, dependency-free) |
 | `thermometer/` | [intro thermometer](https://getdown.dev/blog/intro-to-ala-thermometer/); [the thermometer grows up](https://getdown.dev/blog/thermometer-grows-up/) | Spray's thermometer step by step (§1.6.1 to §1.6.6), one folder per step, each runnable and scored by `ala_lint` |
 

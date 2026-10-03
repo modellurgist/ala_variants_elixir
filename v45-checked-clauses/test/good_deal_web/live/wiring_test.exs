@@ -20,8 +20,8 @@ defmodule GoodDealWeb.WiringTest do
       use GoodDealWeb.Paradigms.Wiring
       @features %{f: WiringTest.Feature}
       def features, do: @features
-      defp land(s, :f, {:rows, _}), do: s
-      def touch(s), do: land(s, :f, {:rows, nil})
+      defp wire(s, :f, {:rows, _}), do: s
+      def touch(s), do: wire(s, :f, {:rows, nil})
     end
     """
 

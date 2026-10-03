@@ -72,8 +72,10 @@ defmodule ZeroCoupledWeb.PortalPage do
          stock_status: StockStatus.new(low_at: StoreConfig.low_stock_at())
        },
        stock_status: StockStatus.new(low_at: StoreConfig.low_stock_at()),
-       add_line: %AddLine{carts: Carts, products: Products, cart_id: cart_id},
-       place_order: %PlaceOrder{orders: Orders},
+       instances: %{
+         add_line: %AddLine{carts: Carts, products: Products, cart_id: cart_id},
+         place_order: %PlaceOrder{orders: Orders, cart_id: cart_id}
+       },
        step: :lines,
        requested_step: :lines,
        summary: nil,
@@ -90,10 +92,11 @@ defmodule ZeroCoupledWeb.PortalPage do
 
   @routes %{
     {:catalog, :requested} => [
-      pass: {OrderLines.Panel, "order", :add},
+      feed: {:add_line, &AddLine.run/2, {OrderLines.Panel, "order", :add}},
       flash: {:info, "Added to order"}
     ],
     {:order, :summary} => [assign: :summary],
+    {:order, :changed} => [call: &Carts.apply_change/1],
     {:order, :removed} => [pass: {Undo.Banner, "undo", :capture}],
     {:order, :review} => [pass: {PortalSubmit.Panel, "submit", :review}],
     {:undo, :expire} => [pass: {Undo.Banner, "undo", :expire}],
@@ -101,6 +104,9 @@ defmodule ZeroCoupledWeb.PortalPage do
     {:undo, :restored} => [pass: {OrderLines.Panel, "order", :receive}],
     {:submit, :step} => [assign: :step, patch: @step_paths],
     {:submit, :blocked} => [flash_by: {:error, @blocked}],
+    {:submit, :approved} => [
+      feed: {:place_order, &PlaceOrder.place/2, {PortalSubmit.Panel, "submit", :complete}}
+    ],
     {:submit, :reference} => [flash: {:info, "Order submitted"}],
     {:stock, :changed} => [
       pass: {OrderLines.Panel, "order", :set_stock},
@@ -108,12 +114,12 @@ defmodule ZeroCoupledWeb.PortalPage do
     ]
   }
 
-  @doc "The page's wiring: where each instance's announcement goes."
+  @doc "The page's wiring: where each instance's port output goes."
   def routes, do: @routes
 
   @impl true
-  def handle_info({_name, _port, _payload} = announcement, socket),
-    do: {:noreply, Instance.route(socket, @routes, announcement)}
+  def handle_info({_name, _port, _payload} = port_output, socket),
+    do: {:noreply, Instance.route(socket, @routes, port_output)}
 
   def handle_info(%Broadcast.Facts.StockChanged{} = change, socket),
     do: {:noreply, Instance.route(socket, @routes, {:stock, :changed, change})}
@@ -140,8 +146,7 @@ defmodule ZeroCoupledWeb.PortalPage do
           id="order"
           cart_id={@cart_id}
           pricing={@pricing}
-          store={Carts}
-          add_line={@add_line}
+          source={&Carts.list_items/1}
           empty_text="No lines yet. Add products below."
           t={@texts.order}
         />
@@ -156,8 +161,6 @@ defmodule ZeroCoupledWeb.PortalPage do
       <.live_component
         module={PortalSubmit.Panel}
         id="submit"
-        cart_id={@cart_id}
-        place_order={@place_order}
         messages={%{number: "must look like PO-1234"}}
         t={@texts.submit}
         flow={@flow}

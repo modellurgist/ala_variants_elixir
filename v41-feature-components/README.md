@@ -3,7 +3,7 @@
 The same storefront and B2B portal as V39 and V40 (the V35 requirements), in the shape
 `phx.gen.live` produces: each feature is a **LiveComponent instance** that owns its state,
 stream, buttons and store writes; the page's template places and configures the instances, and
-its `handle_info` clauses pass each instance's announcement on to the instance it concerns and say
+its `handle_info` clauses pass each instance's port_output on to the instance it concerns and say
 what happened. The real-size build of toy T24.
 
 **Score:** `ala_lint` 98/A default, 97/A strict, 97/A super-strict on the family layer map, before
@@ -20,19 +20,19 @@ other variants learned. Applied here:
    (`CalculateShipping.new(@rates)`) and called with the instance first. `ShippingInfo` folded into
    `CalculateShipping` (`options/1`, `label/2`), since both read the same rate table. The `Cart`
    aggregate holds a map of these instances instead of a config map it destructured.
-2. **Store work in domain abstractions.** `PlaceOrder` (create the order, take the stock, announce
+2. **Store work in domain abstractions.** `PlaceOrder` (create the order, take the stock, send
    each new level) and `AddLine` (store a product line and return it) replace the loop in the
    checkout panel, the order call in the portal's submit panel, and the `persist_line/2` helper two
    panels duplicated.
 3. **Stores as configuration.** Panels no longer name `Carts`, `Products` or `Orders`; the page
    passes `store`, `stock_levels`, `products`, `add_line` and `place_order` as attributes.
-4. **Declared ports.** Every feature has `ports/0`; every panel has `announces/0`.
+4. **Declared ports.** Every feature has `ports/0`; every panel has `sent_port_outputs/0`.
 5. **No catch-all `handle_info`.** Both pages lost `handle_info(_msg, socket)`; each now ignores the
    one broadcast it doesn't use (`ProductSaved`) explicitly. `test/zero_coupled_web/pages/wiring_test.exs`
-   sends every announced port, the undo timer, and both broadcasts to each page and fails on a
+   sends every sent port, the undo timer, and both broadcasts to each page and fails on a
    missing clause. Its first run found a declaration error (the cart panel listed a port it never
-   announces); a seeded missing clause was caught.
-6. **The checkout button** is disabled by the cart's announced `empty?`, not a comparison in the template.
+   sends the page); a seeded missing clause was caught.
+6. **The checkout button** is disabled by the cart's sent `empty?`, not a comparison in the template.
 
 A first attempt put the instances behind a `Pricing` façade; four of its functions were pure
 pass-throughs, and `--strict` fell to 96. Removing the façade restored 97. The score otherwise
@@ -46,11 +46,11 @@ doesn't move: the linter already found nothing on these pages. What changed is w
   ...), a LiveComponent in the same feature unit. A panel: is configured by attributes
   (`cart_id`, `pricing`, the texts it shows); loads its own rows from the store on first
   `update/2`; handles its own events with `phx-target={@myself}`; runs a feature step with
-  `Instance.step/3` and lands each output in `land/2` (a stream insert, an assign, a store write);
-  and **announces** any output it does not land, as `{name, port, payload}` to the process that
+  `Instance.step/3` and wires each output in `wire/2` (a stream insert, an assign, a store write);
+  and **sends the page** any output it does not land, as `{name, port, payload}` to the process that
   mounted it. Inputs from outside arrive by `send_update` (`receive: item`, `set_stock: change`).
 - **`ZeroCoupledWeb.Paradigms.Instance`** (18 lines) is all the machinery: `step/3` and
-  `announce/3`. There is no Binder, no circuit, no protocol.
+  `send/3`. There is no Binder, no circuit, no protocol.
 - **The page** (`lib/zero_coupled_web/pages/cart_page.ex`, 233 lines with its template; the
   portal 147) has: calibration as attributes; `mount/3` that assigns configuration; one
   `handle_params` that records the URL's step; two `handle_event`s (tabs, the checkout button);
@@ -61,28 +61,28 @@ doesn't move: the linter already found nothing on these pages. What changed is w
     do: {:noreply, socket |> pass(Cart.Panel, "cart", receive: item) |> put_flash(:info, "Item restored")}
   ```
 
-  plus `patch/3`, which moves the URL when a flow announces a step. Every flash text is here.
+  plus `patch/3`, which moves the URL when a flow sends the page a step. Every flash text is here.
 - **Rows** (`ZeroCoupled.Catalog.Rows`) moved down to the catalog domain: generic row markup
   that takes its event names and target as attributes, used by six panels.
 
 ## What it settles that the toy could not
 
 - **Feature logic stays pure.** Because the panels reuse the pure feature modules, nothing that
-  decides anything lives in a LiveComponent; the panels only land outputs. T24 had the logic in
+  decides anything lives in a LiveComponent; the panels only wire outputs. T24 had the logic in
   the component; at nine features that would have been the "logic trapped in LiveView" the old
   scorecard penalises.
 - **Hops.** A panel's own action (quantity, remove, promo, shipping, address form, pay) renders
   synchronously, with no hop; only a cross-feature effect takes two messages (panel → page →
   panel). V40 paid two hops for everything. The tests still `settle/1` with two renders after an
   action that crosses features.
-- **URL patching cannot happen inside `update/2`** (LiveView raises), so a flow panel announces
+- **URL patching cannot happen inside `update/2`** (LiveView raises), so a flow panel sends the page
   `{:checkout, :step, step}` and the page patches. That put the step-to-path table where the
   calibration already was, which is where the checklist wants it.
 - **`send_update` to an unmounted instance raises**, so the cart page keeps its index
   instances mounted (hidden) behind the checkout screen, and the portal keeps its lines and
-  catalog mounted behind the review. Nothing announced while paying is lost, and back-navigation
+  catalog mounted behind the review. Nothing sent while paying is lost, and back-navigation
   is instant; the cost is a hidden subtree.
-- **Reading the design.** The map of who announces what, and where it goes, is the page's
+- **Reading the design.** The map of who sends the page what, and where it goes, is the page's
   `handle_info` clauses plus each panel's `@moduledoc`. It reads as requirements, one line per
   wire, but it is not one table (R8 by hand: a point below V39).
 

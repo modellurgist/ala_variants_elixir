@@ -1,10 +1,10 @@
 defmodule ZeroCoupledWeb.CartPage do
   @moduledoc """
   The cart page in the shape `phx.gen.live` produces: the template places the feature instances
-  and configures them; `handle_info` passes each instance's announcement on to the instance it
+  and configures them; `handle_info` passes each instance's port_output on to the instance it
   concerns and says what happened. The store's words and numbers are the attributes; its
   pricing, stores and order placement are configured here once. There is no catch-all
-  `handle_info`: a message the page doesn't route crashes it, and a test sends every announced
+  `handle_info`: a message the page doesn't route crashes it, and a test sends every sent
   port to catch a missing clause before a user does.
   """
   use ZeroCoupledWeb, :live_view
@@ -172,7 +172,7 @@ defmodule ZeroCoupledWeb.CartPage do
          else: (:error -> socket)
   end
 
-  # the cart's instances stay mounted behind the checkout, so nothing announced while paying is lost
+  # the cart's instances stay mounted behind the checkout, so nothing sent while paying is lost
   @impl true
   def render(assigns) do
     ~H"""

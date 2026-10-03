@@ -1,15 +1,15 @@
 defmodule ZeroCoupled.Features.PortalCatalog.Panel do
-  @moduledoc "The orderable products as a UI instance, owning the add forms. Config: `products` (a read function). Input: `set_stock: change`. Announces `{:catalog, :requested, {product, quantity}}`."
+  @moduledoc "The orderable products as a UI instance, owning the add forms. Config: `products` (a read function). Input: `set_stock: change`. Sends the page `{:catalog, :requested, {product, quantity}}`."
   use ZeroCoupledWeb, :live_component
   import ZeroCoupled.Catalog.Rows
   alias ZeroCoupled.Features.PortalCatalog
   alias ZeroCoupledWeb.Paradigms.Instance
 
-  # outputs this instance shows itself; every other port its feature declares is announced
-  @lands_only [:rows]
+  # outputs this instance shows itself; every other port its feature declares is sent
+  @wired_here [:rows]
 
-  @doc "The ports this instance announces, as `{name, port, payload}`."
-  def announces, do: Keyword.keys(PortalCatalog.ports().out) -- @lands_only
+  @doc "The ports this instance sends the page, as `{name, port, payload}`."
+  def sent_port_outputs, do: Keyword.keys(PortalCatalog.ports().out) -- @wired_here
 
   def mount(socket),
     do: {:ok, stream(socket, :portal_products, [])}
@@ -36,10 +36,10 @@ defmodule ZeroCoupled.Features.PortalCatalog.Panel do
          })
        )}
 
-  defp step(s, fun), do: Instance.step(s, fun, &land/2)
-  defp land(s, {:rows, {:reset, rows}}), do: stream(s, :portal_products, rows, reset: true)
-  defp land(s, {:rows, {_, row}}), do: stream_insert(s, :portal_products, row)
-  defp land(s, out), do: Instance.announce(s, :catalog, out)
+  defp step(s, fun), do: Instance.step(s, fun, &wire/2)
+  defp wire(s, {:rows, {:reset, rows}}), do: stream(s, :portal_products, rows, reset: true)
+  defp wire(s, {:rows, {_, row}}), do: stream_insert(s, :portal_products, row)
+  defp wire(s, out), do: Instance.send_port_output(s, :catalog, out)
 
   def render(assigns) do
     ~H"""

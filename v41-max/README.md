@@ -11,7 +11,7 @@ Blog post: [V41-max](https://getdown.dev/blog/intro-to-v41-max/).
 
 Each feature is a LiveComponent instance that holds its state, renders itself and runs its own events.
 The page places and configures the instances, and one `@routes` map says where each instance's
-announcement goes:
+port_output goes:
 
 ```elixir
 @routes %{
@@ -31,7 +31,7 @@ def handle_info({_name, _port, _payload} = a, socket), do: {:noreply, Instance.r
   session keys in `ZeroCoupledWeb.CartSession`.
 - Every label, message and validation text comes from the page (`t` and `messages` attributes).
 - Outputs are facts: `changed`, `captured`/`restored`/`expired`, `ready_to_pay`.
-- `announces/0` is derived from `ports/0` minus each panel's `@lands_only`; no pass-throughs.
+- `sent_port_outputs/0` is derived from `ports/0` minus each panel's `@wired_here`; no pass-throughs.
 - One route table per page (`Instance.route/3`, five target kinds) instead of a clause per wire.
 - Generic `Panes` (`pane`, `only_on`, `tabs`) and `Domain.StockIndicator` take the template comparisons.
 

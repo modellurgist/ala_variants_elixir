@@ -1,22 +1,23 @@
 defmodule ZeroCoupled.Features.Cart.Panel do
   @moduledoc """
-  The cart as a UI instance: its lines, totals, shipping and promo, owning their events and its
-  persistence. Config: `cart_id`, `pricing` (a `Pricing`), `store` (the cart store), `add_line`
-  (an `AddLine`), `gift_wrap_label`, `empty_text`, `invalid_promo_text`, `wishlist_ids`. Inputs by `send_update`: `receive: item`, `confirm_removal: id`,
-  `set_stock: change`, `add_product: product`. Announces `{:cart, port, payload}` for every port it
-  doesn't show itself: `:summary`, `:removed`, `:saved`, `:line`, `:promo_applied`, `:promo_rejected`.
+  The cart as a UI instance: its lines, totals, shipping and promo, owning their events. It loads
+  through `source`, a read the page wires in, and sends every change out for the page to store.
+  Config: `cart_id`, `pricing` (a `Pricing`), `source`, `gift_wrap_label`, `empty_text`,
+  `invalid_promo_text`, `wishlist_ids`. Inputs by `send_update`: `receive: item`,
+  `confirm_removal: id`, `set_stock: change`. Sends the page `{:cart, port, payload}` for every port
+  it doesn't show itself: `:summary`, `:removed`, `:saved`, `:line`, `:changed`, `:promo_applied`,
+  `:promo_rejected`.
   """
   use ZeroCoupledWeb, :live_component
   import ZeroCoupled.Catalog.Rows
-  alias ZeroCoupled.Domain.AddLine
   alias ZeroCoupled.Features.Cart
   alias ZeroCoupledWeb.Paradigms.Instance
 
-  # outputs this instance shows itself; every other port its feature declares is announced
-  @lands_only [:rows, :changed]
+  # outputs this instance shows itself; every other port its feature declares is sent
+  @wired_here [:rows]
 
-  @doc "The ports this instance announces, as `{name, port, payload}`."
-  def announces, do: Keyword.keys(Cart.ports().out) -- @lands_only
+  @doc "The ports this instance sends the page, as `{name, port, payload}`."
+  def sent_port_outputs, do: Keyword.keys(Cart.ports().out) -- @wired_here
 
   def mount(socket), do: {:ok, socket |> stream(:cart_items, []) |> assign(promo_error: nil)}
 
@@ -24,17 +25,15 @@ defmodule ZeroCoupled.Features.Cart.Panel do
   def update(%{confirm_removal: id}, s), do: {:ok, step(s, &Cart.confirm_removal(&1, id))}
   def update(%{set_stock: change}, s), do: {:ok, step(s, &Cart.set_stock(&1, change))}
 
-  def update(%{add_product: product}, s),
-    do: {:ok, step(s, &Cart.receive(&1, AddLine.run(s.assigns.add_line, product)))}
-
   def update(assigns, s), do: {:ok, s |> assign(assigns) |> ensure_loaded()}
 
   defp ensure_loaded(%{assigns: %{state: _}} = s), do: s
 
-  defp ensure_loaded(%{assigns: %{cart_id: cart_id, pricing: pricing, store: store}} = s) do
+  # `source` is a pull port the page wires to a read: this instance never names a store
+  defp ensure_loaded(%{assigns: %{cart_id: cart_id, pricing: pricing, source: source}} = s) do
     s
     |> assign(state: ZeroCoupled.Cart.new(cart_id: cart_id, pricing: pricing))
-    |> step(&Cart.load(&1, store.list_items(cart_id)))
+    |> step(&Cart.load(&1, source.(cart_id)))
   end
 
   def handle_event("update_quantity", %{"item-id" => id, "delta" => d}, s),
@@ -58,29 +57,25 @@ defmodule ZeroCoupled.Features.Cart.Panel do
   def handle_event("apply_promo", %{"code" => code}, s),
     do: {:noreply, step(s, &Cart.apply_promo(&1, %{code: code}))}
 
-  defp step(s, fun), do: Instance.step(s, fun, &land/2)
+  defp step(s, fun), do: Instance.step(s, fun, &wire/2)
 
-  defp land(s, {:rows, {:reset, rows}}), do: stream(s, :cart_items, rows, reset: true)
-  defp land(s, {:rows, {:removed, row}}), do: stream_delete(s, :cart_items, row)
-  defp land(s, {:rows, {_, row}}), do: stream_insert(s, :cart_items, row)
+  defp wire(s, {:rows, {:reset, rows}}), do: stream(s, :cart_items, rows, reset: true)
+  defp wire(s, {:rows, {:removed, row}}), do: stream_delete(s, :cart_items, row)
+  defp wire(s, {:rows, {_, row}}), do: stream_insert(s, :cart_items, row)
 
-  defp land(s, {:summary, summary} = out),
-    do: s |> assign(summary: summary) |> Instance.announce(:cart, out)
+  defp wire(s, {:summary, summary} = out),
+    do: s |> assign(summary: summary) |> Instance.send_port_output(:cart, out)
 
-  defp land(s, {:changed, change}),
+  defp wire(s, {:promo_applied, _} = out),
+    do: s |> assign(promo_error: nil) |> Instance.send_port_output(:cart, out)
+
+  defp wire(s, {:promo_rejected, _} = out),
     do:
-      (
-        s.assigns.store.apply_change(change)
-        s
-      )
+      s
+      |> assign(promo_error: s.assigns.invalid_promo_text)
+      |> Instance.send_port_output(:cart, out)
 
-  defp land(s, {:promo_applied, _} = out),
-    do: s |> assign(promo_error: nil) |> Instance.announce(:cart, out)
-
-  defp land(s, {:promo_rejected, _} = out),
-    do: s |> assign(promo_error: s.assigns.invalid_promo_text) |> Instance.announce(:cart, out)
-
-  defp land(s, out), do: Instance.announce(s, :cart, out)
+  defp wire(s, out), do: Instance.send_port_output(s, :cart, out)
 
   defp int(str), do: String.to_integer(str)
 

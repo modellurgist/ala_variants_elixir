@@ -2,7 +2,7 @@ defmodule GoodDealWeb.CartLive.Show do
   @moduledoc """
   The cart page and its checkout steps, as a plain LiveView. Its configuration is at the top: the
   store's words and rules, and the features and domain instances built from them. Each browser
-  event runs one feature step; each feature output lands through one `land/3` clause, so those
+  event runs one feature step; each feature output wires through one `wire/3` clause, so those
   clauses are the page's wiring, one per declared port, read top to bottom. There is no catch-all:
   an output without a clause crashes the page, and a test checks every declared port has one.
   """
@@ -90,7 +90,7 @@ defmodule GoodDealWeb.CartLive.Show do
     |> put_in([:cart, :gift_wrap_label], "Gift wrap (#{Money.new(Catalog.gift_wrap_cents())})")
   end
 
-  @doc "Which feature each `land/3` key names, so a test can check every declared port has a clause."
+  @doc "Which feature each `wire/3` key names, so a test can check every declared port has a clause."
   @features %{
     cart: Cart,
     undo: Undo,
@@ -159,7 +159,7 @@ defmodule GoodDealWeb.CartLive.Show do
      |> stream(:cart_items, [])
      |> stream(:saved_items, [])
      |> stream(:wishlist_products, [])
-     |> Steps.feed(:cart, &Cart.load/2, &Carts.list_items/1, cart_id, &land/3)
+     |> Steps.feed(:cart, &Cart.load/2, &Carts.list_items/1, cart_id, &wire/3)
      |> run(:checkout, &Checkout.show_form(&1, nil))}
   end
 
@@ -254,41 +254,41 @@ defmodule GoodDealWeb.CartLive.Show do
   def handle_info({:product_created, _product}, socket), do: {:noreply, socket}
   def handle_info({:product_updated, _product}, socket), do: {:noreply, socket}
 
-  defp run(socket, key, step), do: Steps.run(socket, key, step, &land/3)
+  defp run(socket, key, step), do: Steps.run(socket, key, step, &wire/3)
   defp int(s), do: String.to_integer(s)
 
-  # {feature, port} → where it lands on this page
-  defp land(s, :cart, {:rows, change}), do: Steps.stream_change(s, :cart_items, change)
-  defp land(s, :cart, {:summary, summary}), do: assign(s, :summary, summary)
+  # {feature, port} → where it wires on this page
+  defp wire(s, :cart, {:rows, change}), do: Steps.stream_change(s, :cart_items, change)
+  defp wire(s, :cart, {:summary, summary}), do: assign(s, :summary, summary)
 
-  defp land(s, :cart, {:changed, change}) do
+  defp wire(s, :cart, {:changed, change}) do
     Carts.apply_change(change)
     s
   end
 
-  defp land(s, :cart, {:removed, item}), do: run(s, :undo, &Undo.capture(&1, item))
+  defp wire(s, :cart, {:removed, item}), do: run(s, :undo, &Undo.capture(&1, item))
 
-  defp land(s, :cart, {:saved, item}),
+  defp wire(s, :cart, {:saved, item}),
     do: s |> run(:saved, &SavedItems.stash(&1, item)) |> put_flash(:info, "Saved for later")
 
-  defp land(s, :cart, {:line, line}), do: run(s, :wishlist, &Wishlist.toggle(&1, line))
+  defp wire(s, :cart, {:line, line}), do: run(s, :wishlist, &Wishlist.toggle(&1, line))
 
-  defp land(s, :cart, {:promo_applied, _code}),
+  defp wire(s, :cart, {:promo_applied, _code}),
     do: s |> assign(:promo_error, nil) |> put_flash(:info, "Promo applied!")
 
-  defp land(s, :cart, {:promo_rejected, _code}),
+  defp wire(s, :cart, {:promo_rejected, _code}),
     do: s |> assign(:promo_error, "Invalid promo code") |> put_flash(:error, "Invalid promo code")
 
-  defp land(s, :cart, {:checkout_started, summary}),
+  defp wire(s, :cart, {:checkout_started, summary}),
     do: run(s, :checkout, &Checkout.start(&1, summary))
 
-  defp land(s, :cart, {:checkout_requested, cart}), do: run(s, :checkout, &Checkout.pay(&1, cart))
+  defp wire(s, :cart, {:checkout_requested, cart}), do: run(s, :checkout, &Checkout.pay(&1, cart))
 
-  defp land(s, :undo, {:captured, item}),
+  defp wire(s, :undo, {:captured, item}),
     do:
       s |> assign(:undo_pending, true) |> Steps.start_timer(:undo, item, Catalog.undo_window_ms())
 
-  defp land(s, :undo, {:restored, item}),
+  defp wire(s, :undo, {:restored, item}),
     do:
       s
       |> Steps.stop_timer(:undo)
@@ -296,22 +296,22 @@ defmodule GoodDealWeb.CartLive.Show do
       |> run(:cart, &Cart.receive(&1, item))
       |> put_flash(:info, "Item restored")
 
-  defp land(s, :undo, {:expired, item_id}),
+  defp wire(s, :undo, {:expired, item_id}),
     do: s |> assign(:undo_pending, false) |> run(:cart, &Cart.confirm_removal(&1, item_id))
 
-  defp land(s, :saved, {:rows, change}), do: Steps.stream_change(s, :saved_items, change)
-  defp land(s, :saved, {:count, count}), do: assign(s, :saved_count, count)
+  defp wire(s, :saved, {:rows, change}), do: Steps.stream_change(s, :saved_items, change)
+  defp wire(s, :saved, {:count, count}), do: assign(s, :saved_count, count)
 
-  defp land(s, :saved, {:moved, item}),
+  defp wire(s, :saved, {:moved, item}),
     do: s |> run(:cart, &Cart.receive(&1, item)) |> put_flash(:info, "Moved to cart")
 
-  defp land(s, :wishlist, {:rows, change}), do: Steps.stream_change(s, :wishlist_products, change)
-  defp land(s, :wishlist, {:count, count}), do: assign(s, :wishlist_count, count)
-  defp land(s, :wishlist, {:ids, ids}), do: assign(s, :wishlist_ids, ids)
-  defp land(s, :wishlist, {:added, _product}), do: put_flash(s, :info, "Added to wishlist")
-  defp land(s, :wishlist, {:dropped, _product}), do: put_flash(s, :info, "Removed from wishlist")
+  defp wire(s, :wishlist, {:rows, change}), do: Steps.stream_change(s, :wishlist_products, change)
+  defp wire(s, :wishlist, {:count, count}), do: assign(s, :wishlist_count, count)
+  defp wire(s, :wishlist, {:ids, ids}), do: assign(s, :wishlist_ids, ids)
+  defp wire(s, :wishlist, {:added, _product}), do: put_flash(s, :info, "Added to wishlist")
+  defp wire(s, :wishlist, {:dropped, _product}), do: put_flash(s, :info, "Removed from wishlist")
 
-  defp land(s, :wishlist, {:taken, product}),
+  defp wire(s, :wishlist, {:taken, product}),
     do:
       s
       |> Steps.feed(
@@ -319,25 +319,25 @@ defmodule GoodDealWeb.CartLive.Show do
         &Cart.receive/2,
         {:add_line, &AddLine.run/2},
         product,
-        &land/3
+        &wire/3
       )
       |> put_flash(:info, "Added to cart")
 
-  defp land(s, :ui, {:tab, tab}), do: assign(s, :active_tab, tab)
+  defp wire(s, :ui, {:tab, tab}), do: assign(s, :active_tab, tab)
 
-  defp land(s, :checkout, {:step, step}),
+  defp wire(s, :checkout, {:step, step}),
     do: s |> assign(:step, step) |> Steps.patch(@step_paths, step)
 
-  defp land(s, :checkout, {:form, changeset}),
+  defp wire(s, :checkout, {:form, changeset}),
     do: assign(s, :address_form, to_form(changeset, action: :validate))
 
-  defp land(s, :checkout, {:address, address}), do: assign(s, :address, address)
-  defp land(s, :checkout, {:blocked, reason}), do: put_flash(s, :error, @blocked[reason])
+  defp wire(s, :checkout, {:address, address}), do: assign(s, :address, address)
+  defp wire(s, :checkout, {:blocked, reason}), do: put_flash(s, :error, @blocked[reason])
 
-  defp land(s, :checkout, {:ready_to_pay, payment}),
+  defp wire(s, :checkout, {:ready_to_pay, payment}),
     do: Steps.async(s, :payment, {:charge, &Charge.call/2}, payment)
 
-  defp land(s, :checkout, {:done, reference}),
+  defp wire(s, :checkout, {:done, reference}),
     do:
       s
       |> Steps.call({:settle, &SettleOrder.run/2}, reference)

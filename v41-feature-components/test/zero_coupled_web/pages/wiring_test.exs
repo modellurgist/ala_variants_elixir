@@ -1,7 +1,7 @@
 defmodule ZeroCoupledWeb.WiringTest do
   @moduledoc """
-  The pages have no catch-all `handle_info`, so an announcement nobody routes would crash the page.
-  This sends every port each instance declares it announces (plus the page's other messages) to
+  The pages have no catch-all `handle_info`, so an port_output nobody routes would crash the page.
+  This sends every port each instance declares it sends the page (plus the page's other messages) to
   the page, and fails if the page has no clause for it. A clause that exists but can't handle the
   sample payload is still a route, so only a missing clause counts.
   """
@@ -31,10 +31,10 @@ defmodule ZeroCoupledWeb.WiringTest do
     _ -> true
   end
 
-  defp announced(instances),
-    do: for({name, panel} <- instances, port <- panel.announces(), do: {name, port, :sample})
+  defp sent_outputs(instances),
+    do: for({name, panel} <- instances, port <- panel.sent_port_outputs(), do: {name, port, :sample})
 
-  test "the cart page routes everything its instances announce" do
+  test "the cart page routes everything its instances send" do
     instances = [
       cart: Cart.Panel,
       undo: Undo.Banner,
@@ -43,7 +43,7 @@ defmodule ZeroCoupledWeb.WiringTest do
       checkout: Checkout.Panel
     ]
 
-    for msg <- announced(instances) ++ [{:undo, :expire, 1}] ++ @broadcasts,
+    for msg <- sent_outputs(instances) ++ [{:undo, :expire, 1}] ++ @broadcasts,
         do:
           assert(
             routed?(ZeroCoupledWeb.CartPage, msg),
@@ -51,7 +51,7 @@ defmodule ZeroCoupledWeb.WiringTest do
           )
   end
 
-  test "the portal page routes everything its instances announce" do
+  test "the portal page routes everything its instances send" do
     instances = [
       catalog: PortalCatalog.Panel,
       order: OrderLines.Panel,
@@ -59,7 +59,7 @@ defmodule ZeroCoupledWeb.WiringTest do
       submit: PortalSubmit.Panel
     ]
 
-    for msg <- announced(instances) ++ [{:undo, :expire, 1}] ++ @broadcasts,
+    for msg <- sent_outputs(instances) ++ [{:undo, :expire, 1}] ++ @broadcasts,
         do:
           assert(
             routed?(ZeroCoupledWeb.PortalPage, msg),
