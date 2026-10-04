@@ -1,0 +1,65 @@
+<.header>
+  All Products
+  <:actions>
+    <.link patch={~p"/products/new"}>
+      <.button>New Product</.button>
+    </.link>
+  </:actions>
+</.header>
+
+<.stream_list
+  :let={{dom_id, product}}
+  class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+  id="products"
+  stream={@streams.products}
+>
+  <div
+    id={dom_id}
+    class="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+    phx-click={JS.navigate(~p"/products/#{product}")}
+  >
+    <div class="aspect-square bg-stone-100 p-8">
+      <img
+        class="h-full w-full rounded-xl object-cover"
+        src={product.thumbnail}
+        title={product.name}
+        alt={product.name}
+      />
+    </div>
+    <div class="flex flex-1 flex-col gap-3 p-5">
+      <div>
+        <h3 class="font-semibold text-stone-900">{product.name}</h3>
+        <p class="line-clamp-2 pt-1 text-sm text-stone-500">{product.description}</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <.stock_indicator stock={product.stock} rule={@stock_rule} labels={@stock_labels} />
+      </div>
+      <div class="mt-auto flex items-center justify-between pt-2">
+        <span class="text-lg font-semibold tabular-nums">{Money.new(product.amount)}</span>
+        <button
+          phx-click="add_to_cart"
+          phx-value-id={product.id}
+          class="rounded-lg bg-brand-700 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-800"
+        >
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  </div>
+</.stream_list>
+
+<.only_on current={@live_action} name={:new}>
+  <.modal id="product-modal" show on_cancel={JS.patch(~p"/products")}>
+    <.record_form
+      id="product-form"
+      form={@form}
+      fields={@form_text.fields}
+      title={@page_title}
+      subtitle={@form_text.subtitle}
+      submit={@form_text.submit}
+      saving={@form_text.saving}
+      on_validate="validate_product"
+      on_submit="save_product"
+    />
+  </.modal>
+</.only_on>

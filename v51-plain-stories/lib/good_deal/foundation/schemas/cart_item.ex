@@ -1,0 +1,20 @@
+defmodule GoodDeal.Foundation.Schemas.CartItem do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias GoodDeal.Foundation.Schemas.Product
+
+  schema "cart_items" do
+    field :quantity, :integer
+    field :cart_id, :id
+    belongs_to :product, Product
+
+    timestamps()
+  end
+
+  def changeset(cart_item, attrs) do
+    cart_item
+    |> cast(attrs, [:quantity])
+    |> validate_required([:quantity])
+  end
+end
