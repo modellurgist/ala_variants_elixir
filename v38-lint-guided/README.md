@@ -7,23 +7,24 @@ the boss. Charter: [`ala_lab/docs/v38-lint-guided-evolution.md`](../../ala_lab/d
 
 ## How to build and test
 
-This is a standard `:amazin` Phoenix project (source under `lib/`, `test/`, `config/`, `mix.exs`).
-It builds through the shared `amazin/` harness, which owns the compiled deps (including the
-`lazy_html` NIF):
+This is a standard `:good_deal` Phoenix project (source under `lib/`, `test/`, `config/`, `mix.exs`).
+It needs PostgreSQL (see `config/test.exs`):
 
 ```bash
-# from ala_architecture/
-./amazin-variants/switch.sh v38-lint-guided     # symlink amazin/lib,test -> here
-cd amazin && MIX_ENV=test mix test --no-deps-check
+mix deps.get
+mix test                 # 111 tests, 0 failures (2026-10-04)
 ```
+
+The test counts in the iteration log below are as they stood at each iteration; later work grew the
+suite to 111.
 
 Lint (from the linter's dir, against this source):
 
 ```bash
-cd ala_lint && mix run v38_lint.exs              # layer map + findings dump
+cd ala_lint_elixir && mix run v38_lint.exs       # layer map + findings dump
 ```
 
-The layer map lives in `ala_lint/v38_lint.exs` for now; formalising it into an in-repo
+The layer map lives in `ala_lint_elixir/v38_lint.exs` for now; formalising it into an in-repo
 `--layers-module` is a later step.
 
 ## Baseline (iteration 0, 2026-09-23)
@@ -59,14 +60,15 @@ The real work the checklist points at:
 
 The one genuine R5 finding: the cart-id session key was written as the atom `:cart_id` by the
 `SessionCart` plug and read as the string `"cart_id"` by three LiveViews — a silent, and fragile
-(atom-vs-string), cross-module agreement. Introduced `AmazinWeb.CartSession`, a small module that owns
+(atom-vs-string), cross-module agreement. Introduced `GoodDealWeb.CartSession`, a small module that owns
 the key and the write/read round-trip; the plug and the three readers now depend on it. The checklist
 remedy for R5 exactly: make the contract a named thing both ends depend on downward.
 
-- Files: new `lib/amazin_web/cart_session.ex`; edits to the plug, `CartLive.Show`, `CartLive.Success`,
+- Files: new `lib/good_deal_web/cart_session.ex`; edits to the plug, `CartLive.Show`, `CartLive.Success`,
   `ProductLive.Index`.
-- Result: `"cart_id"` R5 went from 4 modules (Show, Success, Index, StripeWebhookHandler) to 2 (Show,
-  StripeWebhookHandler) — the session contract is resolved; what remains is the *Stripe metadata* key,
+- Result: `"cart_id"` R5 went from 4 modules (Show, Success, Index, and the Stripe webhook handler)
+  to 2 (Show and the webhook handler) — the session contract is resolved; what remains is the
+  *Stripe metadata* key,
   a separate external-API contract to be handled on its own terms.
 - Verification: **90 tests, 0 failures.** Score held at 86/B (R5 is counted per distinct literal, so
   the number won't move until the Stripe pair is addressed too) — the win is a removed silent
@@ -84,16 +86,16 @@ Added two user-visible features taken from v35, in v38's conventional style (Liv
 - **Gift wrapping** — a per-item add-on toggle. New `toggle_gift_wrap` event.
 
 **The ALA move (R3, done right).** Rather than bake the rates into the domain (where v09 had them),
-the store's calibration now lives in one composition-level module, `Amazin.Catalog`
+the store's calibration now lives in one composition-level module, `GoodDeal.Catalog`
 (`shipping_methods/0`, `gift_wrap_cents/0`). The `Show` LiveView reads it and threads it *down* into
 `CartState`; `Shipping` and `Pricing` became **generic** — `Shipping.cost(tier_info, subtotal)`,
 `Pricing.gift_wrap_total(count, cents)` — taking calibration as arguments, holding no store-specific
 numbers. No lower layer reaches up to `Catalog` (that would be an R1 upward edge); calibration flows
 down from the top, exactly as the checklist asks.
 
-- Files: new `lib/amazin/catalog.ex`; generic `domain/shipping.ex`, `domain/pricing.ex`; extended
+- Files: new `lib/good_deal/catalog.ex`; generic `domain/shipping.ex`, `domain/pricing.ex`; extended
   `CartState`, `CartLive.Show` (events + selector/toggle/summary components); layer map (in
-  `ala_lint/v38_lint.exs`) puts `Catalog` in the app tier (calibration = composition knowledge).
+  `ala_lint_elixir/v38_lint.exs`) puts `Catalog` in the app tier (calibration = composition knowledge).
 - Tests: +11 (Shipping unit tests, gift-wrap unit test, two LiveView tests for the new UI). **101
   tests, 0 failures.**
 
@@ -115,7 +117,7 @@ Continued the R3 work, and made a deliberate checklist-user judgement about *whi
 hoisting.
 
 - **Hoisted the promo table.** `Pricing.validate_promo/1` became `validate_promo(code, codes)` —
-  generic — and the code→percent map moved to `Amazin.Catalog.promo_codes/0`. The composition
+  generic — and the code→percent map moved to `GoodDeal.Catalog.promo_codes/0`. The composition
   (`Show.apply_promo`) passes it in. One caller, clean.
 - **Deferred the low-stock threshold, on purpose.** The `5` in `Inventory.stock_status/1` is a genuine
   application literal, but it is called **seven times directly in a HEEx template** as a display
@@ -145,7 +147,7 @@ Did the presentation refactor deferred last time, which was the *right* way to h
 threshold rather than threading a bare int through seven template calls.
 
 - `Inventory.stock_status/1` → `stock_status(stock, threshold)` — generic; the `5` moved to
-  `Amazin.Catalog.low_stock_threshold/0`.
+  `GoodDeal.Catalog.low_stock_threshold/0`.
 - **Status is now computed once at the composition** and flows down as data: `ProductLive.Index` binds
   it per row (removing the 7× recomputation in the template), and `CartLive.Show` computes it where it
   renders each cart row and passes it into `cart_item_row` → `stock_badge`. The badge components became
@@ -163,7 +165,7 @@ threshold rather than threading a bare int through seven template calls.
 
 102 tests, 0 failures. **All application-literal R3 flags in v38's own code are now cleared** —
 `Pricing`, `Shipping`, and `Inventory` are fully generic, and every product constant lives in
-`Amazin.Catalog` at the composition. The two remaining R3 flags (`CoreComponents` 200 ms, `Telemetry`
+`GoodDeal.Catalog` at the composition. The two remaining R3 flags (`CoreComponents` 200 ms, `Telemetry`
 10 s) are framework glue a reader judges intrinsic, in modules deliberately left off the layer map.
 
 ## Iteration 5 (2026-09-24) — clear the false positives and the last real contract
@@ -176,9 +178,11 @@ Three changes, targeting the strict score's *artifacts* rather than gaming it:
   - a pipe whose left side is itself a call or a struct build is a *transform*, not a rename, so it is
     no longer a pass-through. This correctly declassified the Ecto context functions
     (`%Product{} |> Product.changeset() |> Repo.insert()`) — they were never bare renames.
-- **(B) Single-sourced the Stripe `cart_id` metadata** into `AmazinWeb.CheckoutMetadata`, which
-  `CartLive.Show` (write) and `StripeWebhookHandler` (read) now both depend on — the last genuine R5
-  silent contract, gone.
+- **(B) Single-sourced the Stripe `cart_id` metadata** into `GoodDealWeb.CheckoutMetadata`, which
+  `CartLive.Show` (write) and the Stripe webhook handler (read) then both depended on — the last
+  genuine R5 silent contract, gone. (The webhook handler was later removed when payment moved to the
+  in-process `GoodDeal.Foundation.LedgerGateway`; `CartLive.Show` is now the only user of
+  `CheckoutMetadata`.)
 - **(C) Scoped the lint to v38's ALA design**, excluding Phoenix scaffolding (`CoreComponents`,
   `Telemetry`, `Gettext`, `Endpoint`, error views, `Application`, the Credo check). Their literals
   (200 ms animation, 10 s poll) and size are framework-intrinsic, not application concerns.
