@@ -1,5 +1,5 @@
 # Layer-aware ala_lint for this variant, at every tier.
-#   cd ../../ala_lint_elixir && mix run ../ala_variants_elixir/v52-running-wiring/lint.exs
+#   cd ../../ala_lint_elixir && mix run ../ala_variants_elixir/v51b-shared-story/lint.exs
 lib = Path.expand("lib", __DIR__)
 
 layers = [

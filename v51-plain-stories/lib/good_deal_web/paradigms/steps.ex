@@ -14,6 +14,40 @@ defmodule GoodDealWeb.Paradigms.Steps do
     Enum.reduce(outputs, assign(socket, key, state), &wire.(&2, key, &1))
   end
 
+  alias GoodDealWeb.Paradigms.Trace
+
+  @doc """
+  Send a story's input from a page: `parts[key].input(...)`, recording the hop from whatever output
+  is being routed (or the browser) when the trace is on. Which output that is rides in the socket's
+  private map for the length of one clause, so nested routing restores it on the way out.
+  """
+  def to(socket, page, parts, key, port, payload, out) do
+    Trace.hop(page, hop(socket) || :outside, {key, port})
+    parts[key].input(mark(socket, routed: true), port, payload, out)
+  end
+
+  @doc """
+  Route one of a story's outputs through the page's `wire/3`, recording the output as the hop being
+  routed and, when the clause sends it to no story, that it landed on the page.
+  """
+  def out(socket, page, key, {port, _} = output, wire) do
+    previous = Map.take(socket.private, [:ala_hop, :ala_routed])
+    socket = wire.(mark(socket, hop: {key, port}, routed: false), key, output)
+    unless socket.private[:ala_routed], do: Trace.hop(page, {key, port}, :page)
+
+    %{
+      socket
+      | private: socket.private |> Map.drop([:ala_hop, :ala_routed]) |> Map.merge(previous)
+    }
+  end
+
+  defp hop(socket), do: socket.private[:ala_hop]
+
+  defp mark(socket, marks) do
+    private = Enum.reduce(marks, socket.private, fn {k, v}, p -> Map.put(p, :"ala_#{k}", v) end)
+    %{socket | private: private}
+  end
+
   @doc "Run feature `key`'s `input` on what `source` answers for `payload` (or answers, for a read of nothing)."
   def feed(socket, key, input, source, payload, wire),
     do: run(socket, key, &input.(&1, ask(source, payload)), wire)

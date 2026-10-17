@@ -1,11 +1,12 @@
-# V52 design: the wiring as it ran, and one editing story for two pages
+# V51B design: one editing story for two pages
 
-V51's design plus one paradigm, a trace of the hops the pages route, and (a day later, built into
-this variant rather than a V53) one editing story placed by both pages. The trace first. V51 draws a page by
+V51's design with one editing story placed by both pages, the subject of this variant and described
+last below, after the running trace, which was first built here (as V52) and has since been added
+to V50 and V51 in place. The trace sections are kept as the record of that build. V51 draws a page by
 parsing its own source for `wire/3` clauses, which can drift (a clause the parser misreads draws
 wrong and nothing notices). Spray's instruction is to draw the diagram from the code that runs, and
 the checklist's R8 technique is a coverage test over the built graph. In Elixir the graph isn't built
-once; it runs clause by clause. So V52 records it while it runs.
+once; it runs clause by clause. So V51B records it while it runs.
 
 ## How it records
 
@@ -28,7 +29,7 @@ records each hop correctly.
 `ExUnit.after_suite` writes `docs/diagrams/running/*.md` and reports every declared output no hop
 left from. The first run reported two: the cart page's `ui: :tab` (no test switched a tab) and the
 portal's `undo: :expired` (no portal test let the undo window close). Both were wired and both were
-untested; the source-parsed check saw a clause and was satisfied. V52 adds the two tests.
+untested; the source-parsed check saw a clause and was satisfied. V51B adds the two tests.
 
 ## What it costs
 

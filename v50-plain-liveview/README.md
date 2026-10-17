@@ -5,8 +5,18 @@ be reached at familiarity 5 with no relays between components. Blog post:
 [V50, plain LiveView](https://getdown.dev/blog/intro-to-v50-plain-liveview/).
 
 **Score:** full checklist by hand **100**. `ala_lint` 100/A at every tier (10 of 10 checked rules met
-under `--strict`). **118 tests, 0 failures.** Familiarity 5 of 5 (judgement). No LiveComponents, so no
+under `--strict`). **123 tests, 0 failures**, every declared output routed under the suite. Familiarity 5 of 5 (judgement). No LiveComponents, so no
 relays between them; every update runs inside one `handle_event`, and only the payment is a task.
+
+## The wiring as it ran (added 2026-10-16)
+
+`Steps.run/4` records, when a test run has the trace on, the hop from whatever output is being routed
+(or the browser, a timer, a task, PubSub) to the part it reached, and a landing when a `wire/3`
+clause ran no other part. No page changed: the page `Steps.run` was called from is read off the
+`wire` function it was handed. `ExUnit.after_suite` writes `docs/diagrams/running/*.md` and fails the
+run if a declared output never routed. Its first run found four: the cart's wishlist removal and
+out-of-stock payment, the portal's undo expiry and empty review, each wired and untested; the suite
+has them now. `lint.exs` holds the layer map (100 at every tier).
 
 ## What it changes from V48
 

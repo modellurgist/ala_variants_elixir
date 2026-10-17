@@ -8,10 +8,37 @@ defmodule GoodDealWeb.Paradigms.Steps do
   """
   import Phoenix.LiveView, only: [stream: 4, stream_insert: 3, stream_delete: 3, push_patch: 2]
   import Phoenix.Component, only: [assign: 3]
+  alias GoodDealWeb.Paradigms.Trace
 
+  @doc """
+  Run a step and route each output through `wire`. When the trace is on, records the hop from
+  whatever output is being routed (or the browser) to `key`, then each output as the hop being
+  routed and, when its clause runs no other part, that it landed on the page. Which output is being
+  routed rides in the socket's private map for the length of one clause, so nested routing restores
+  it on the way out. The page is the module `wire` was captured from.
+  """
   def run(socket, key, step, wire) do
+    page = Function.info(wire)[:module]
+    Trace.hop(page, socket.private[:ala_hop] || :outside, key)
     {state, outputs} = step.(socket.assigns[key])
-    Enum.reduce(outputs, assign(socket, key, state), &wire.(&2, key, &1))
+    socket = assign(mark(socket, routed: true), key, state)
+    Enum.reduce(outputs, socket, &out(&2, page, key, &1, wire))
+  end
+
+  defp out(socket, page, key, {port, _} = output, wire) do
+    previous = Map.take(socket.private, [:ala_hop, :ala_routed])
+    socket = wire.(mark(socket, hop: {key, port}, routed: false), key, output)
+    unless socket.private[:ala_routed], do: Trace.hop(page, {key, port}, :page)
+
+    %{
+      socket
+      | private: socket.private |> Map.drop([:ala_hop, :ala_routed]) |> Map.merge(previous)
+    }
+  end
+
+  defp mark(socket, marks) do
+    private = Enum.reduce(marks, socket.private, fn {k, v}, p -> Map.put(p, :"ala_#{k}", v) end)
+    %{socket | private: private}
   end
 
   @doc "Run feature `key`'s `input` on what `source` answers for `payload` (or answers, for a read of nothing)."

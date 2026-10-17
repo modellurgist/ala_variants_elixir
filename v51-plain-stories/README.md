@@ -5,8 +5,17 @@ user-story modules and meet every rule `ala_lint` checks at its strictest tier, 
 plain LiveView.
 
 **Score:** full checklist by hand **100**. `ala_lint` 100/A at every tier, and **10 of 10 checked rules
-met under `--super-strict`**, the first variant to do so. **126 tests, 0 failures.** Familiarity 4 of 5
+met under `--super-strict`**, the first variant to do so. **129 tests, 0 failures**, every declared output routed under the suite. Familiarity 4 of 5
 (judgement). No LiveComponents, so no relays between them.
+
+## The wiring as it ran (added 2026-10-16)
+
+`Steps.to/7` and `Steps.out/5` record every hop a page routes while the test suite runs (a browser
+event into a story, a story's output into another story, an output landing on the page); the pages'
+`to/4` and `out/1` became one-line calls into them. `ExUnit.after_suite` writes
+`docs/diagrams/running/*.md` and fails the run if a declared output never routed. The first run
+found the cart's tab switch and the portal's undo expiry wired and untested; the suite has both now.
+`lint.exs` holds the layer map (100 at every tier).
 
 ## What it changes from V50
 

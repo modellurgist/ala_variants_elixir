@@ -241,3 +241,18 @@ process and the same call, effects happen in output order with no message betwee
 | `lib/good_deal/domain/add_line.ex`, `charge.ex`, `settle_order.ex` | configured store-work instances |
 | `lib/good_deal/components/` | generic UI components |
 | `test/good_deal_web/live/wiring_test.exs` | coverage and diagram tests |
+
+## The wiring as it ran (2026-10-16)
+
+Spray's instruction is to draw the diagram from the code; the checklist's R8 technique is a coverage
+test over the built graph. In a LiveView the graph runs clause by clause, so it is recorded as it
+runs. `GoodDealWeb.Paradigms.Trace` is an ETS table the test helper turns on; `Steps.run/4` records
+a hop into the part it runs and, for each output, whether the page's clause ran another part or
+kept it. Which output is being routed rides in the socket's private map for one clause and is
+restored after, so nested routing records each hop correctly. Nothing in a page changed: the page is
+the module the `wire` function was captured from. Off, `Trace.hop/3` is a no-op.
+
+The first run found four declared outputs no test routed: `checkout: :blocked` and `wishlist:
+:dropped` on the cart, `undo: :expired` and `flow: :blocked` on the portal. All four were wired;
+none was tested. Four tests were added. The same check on V05 and V06 in Ruby found the same kind
+of thing on its first run.

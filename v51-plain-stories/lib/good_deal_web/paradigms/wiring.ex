@@ -15,8 +15,15 @@ defmodule GoodDealWeb.Paradigms.Wiring do
   reading the `@parts` attribute (which `parts/0` returns): the build fails on a gap.
   """
 
-  @doc "`%{unwired: [{key, port}], unknown: [{key, port}]}` for a page or a story."
-  def gaps(composition), do: composition |> source() |> heads() |> compare(composition.parts())
+  @doc "`%{unwired: [{key, port}], unknown: [{key, port}]}` for a page or a story. A page may list outputs it leaves open on purpose in `grounded/0`."
+  def gaps(composition) do
+    gaps = composition |> source() |> heads() |> compare(composition.parts())
+    %{gaps | unwired: gaps.unwired -- grounded(composition)}
+  end
+
+  @doc "The `{key, port}` outputs a composition declares it leaves open."
+  def grounded(composition),
+    do: if(function_exported?(composition, :grounded, 0), do: composition.grounded(), else: [])
 
   @doc "`%{unhandled: [port], unknown: [port]}`: a story's input ports without an `input/4` clause, and clauses for no port."
   def input_gaps(story) do

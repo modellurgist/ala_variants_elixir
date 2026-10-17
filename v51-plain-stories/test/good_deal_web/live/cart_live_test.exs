@@ -274,5 +274,11 @@ defmodule GoodDealWeb.CartLiveTest do
       {:ok, _lv, html} = live(conn, ~p"/cart/success")
       assert html =~ "You did it!"
     end
+
+    test "switching a tab shows its pane; UI state only", %{conn: conn} do
+      %{lv: lv} = open_cart(conn)
+      html = lv |> element(~s([phx-click=switch_tab][phx-value-tab=saved])) |> render_click()
+      assert html =~ "No saved items"
+    end
   end
 end

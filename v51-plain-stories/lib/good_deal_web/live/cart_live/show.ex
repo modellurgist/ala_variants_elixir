@@ -195,9 +195,14 @@ defmodule GoodDealWeb.CartLive.Show do
   def handle_info({:product_created, _product}, socket), do: {:noreply, socket}
   def handle_info({:product_updated, _product}, socket), do: {:noreply, socket}
 
-  defp to(socket, key, port, payload), do: @parts[key].input(socket, port, payload, out(key))
-  defp out(key), do: &wire(&1, key, &2)
-  defp run(socket, key, step), do: Steps.run(socket, key, step, &wire/3)
+  defp to(socket, key, port, payload),
+    do: Steps.to(socket, __MODULE__, @parts, key, port, payload, out(key))
+
+  defp out(key), do: fn s, output -> Steps.out(s, __MODULE__, key, output, &wire/3) end
+
+  # a part the page runs itself routes its outputs the same way a story's do, so the trace sees them
+  defp run(socket, key, step),
+    do: Steps.run(socket, key, step, fn s, k, output -> out(k).(s, output) end)
 
   # {story, port} → where it wires on this page
   defp wire(s, :edit_cart, {:summary, summary}), do: assign(s, :summary, summary)

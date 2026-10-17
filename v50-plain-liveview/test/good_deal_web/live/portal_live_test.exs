@@ -103,4 +103,25 @@ defmodule GoodDealWeb.PortalLiveTest do
     refute html =~ "Item removed."
     assert html =~ "Bulk Widget"
   end
+
+  test "when the undo window elapses the removal is final", %{conn: conn} do
+    %{lv: lv, product_a: a} = open_portal(conn)
+
+    lv
+    |> element(~s(#portal_products-#{a.id} form))
+    |> render_submit(%{"product-id" => a.id, "quantity" => "2"})
+
+    lv |> element(~s(#order_lines button), "Remove") |> render_click()
+    held = :sys.get_state(lv.pid).socket.assigns.undo.pending
+    send(lv.pid, {:timer, :undo, held})
+    html = render(lv)
+    refute html =~ "Item removed."
+    refute html =~ ~s(#order_lines-#{held.id})
+  end
+
+  test "reviewing an empty order is blocked", %{conn: conn} do
+    %{lv: lv} = open_portal(conn)
+    html = render_click(lv, "go_review", %{})
+    assert html =~ "Your order is empty"
+  end
 end

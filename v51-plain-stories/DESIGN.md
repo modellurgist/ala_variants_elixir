@@ -273,3 +273,16 @@ same handler call, in output order.
 | `lib/good_deal/state/cart_lines.ex`, `promo.ex`, `cart_totals.ex` | the split cart state |
 | `lib/good_deal_web/paradigms/steps.ex`, `wiring.ex`, `drawing.ex` | runner, checks, drawer |
 | `test/good_deal_web/live/wiring_test.exs` | the coverage, event and diagram tests |
+
+## The wiring as it ran (2026-10-16)
+
+The trace first built as V51B is now part of V51: `Steps.to/7` records a hop from whatever output is
+being routed (or `:outside`) to `{key, port}` and sends the story its input; `Steps.out/5` marks an
+output as the hop being routed, runs the page's `wire/3` clause, and records a landing when the
+clause sent it to no story. The marker rides in the socket's private map for the length of one
+clause. The pages changed two lines each (`to/4` and `out/1`), plus a one-line wrapper on the cart
+page so the tab state it runs itself routes through `out/1` like a story's; the stories did not
+change. `Trace` is an ETS table the test helper turns on; off, the pages pay nothing.
+
+The first run reported two declared outputs no test routed, the cart's `ui: :tab` and the portal's
+`undo: :expired`, both wired, both untested, both now tested.

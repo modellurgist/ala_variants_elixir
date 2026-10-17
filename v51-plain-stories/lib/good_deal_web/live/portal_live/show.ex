@@ -12,6 +12,7 @@ defmodule GoodDealWeb.PortalLive.Show do
   alias GoodDeal.Catalog
   alias GoodDeal.Domain.{CalculateShipping, StockStatus, VolumeTier}
   alias GoodDealWeb.CartSession
+  alias GoodDealWeb.Paradigms.Steps
   alias GoodDealWeb.Stories.{BrowseCatalog, EditOrder, SubmitOrder, UndoRemoval}
 
   @steps_by_url %{"review" => :review, "submitted" => :submitted}
@@ -116,8 +117,10 @@ defmodule GoodDealWeb.PortalLive.Show do
   def handle_info({:product_created, _product}, socket), do: {:noreply, socket}
   def handle_info({:product_updated, _product}, socket), do: {:noreply, socket}
 
-  defp to(socket, key, port, payload), do: @parts[key].input(socket, port, payload, out(key))
-  defp out(key), do: &wire(&1, key, &2)
+  defp to(socket, key, port, payload),
+    do: Steps.to(socket, __MODULE__, @parts, key, port, payload, out(key))
+
+  defp out(key), do: fn s, output -> Steps.out(s, __MODULE__, key, output, &wire/3) end
 
   # {story, port} → where it wires on this page
   defp wire(s, :order, {:summary, summary}), do: assign(s, :summary, summary)

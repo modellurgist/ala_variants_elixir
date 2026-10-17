@@ -163,6 +163,29 @@ defmodule GoodDealWeb.CartLiveTest do
   end
 
   describe "real-time stock" do
+    test "wishlisting a cart item again takes it off the wishlist", %{conn: conn} do
+      %{lv: lv, item_a: item_a} = open_cart(conn)
+      click(lv, "toggle_wishlist", item_a.id)
+      html = click(lv, "toggle_wishlist", item_a.id)
+      assert html =~ "Removed from wishlist"
+      assert html =~ "Your wishlist is empty"
+    end
+
+    test "paying for an item that went out of stock is blocked", %{conn: conn} do
+      %{lv: lv, product_a: a} = open_cart(conn)
+      lv |> element("button", "Checkout") |> render_click()
+
+      lv
+      |> form("[phx-submit=submit_address]",
+        address: %{name: "Ada", line1: "1 Ave", city: "London", postal_code: "12345"}
+      )
+      |> render_submit()
+
+      {:ok, _} = GoodDeal.Foundation.Products.update(a, %{stock: 0})
+      html = lv |> element("button", "Pay") |> render_click()
+      assert html =~ "Some items are out of stock"
+    end
+
     test "a stock_changed fact marks the item out of stock", %{conn: conn} do
       %{lv: lv, product_a: a} = open_cart(conn)
 
