@@ -43,7 +43,10 @@ defmodule GoodDealWeb.Stories.EditCart do
       ]
     }
 
-  @doc "Config: `cart_id`, and `pricing` (`shipping`, `stock_status`, `promo`, `gift_wrap`)."
+  @doc """
+  Config: `cart_id`, `pricing` (`shipping`, `stock_status`, `promo`, `gift_wrap`), and `hold_ms`,
+  how long a removed line stays undoable.
+  """
   def mount(s, opts, out) do
     cart_id = opts[:cart_id]
     pricing = opts[:pricing]
@@ -56,7 +59,7 @@ defmodule GoodDealWeb.Stories.EditCart do
       add_line: %AddLine{carts: Carts, products: Products, cart_id: cart_id}
     )
     |> stream(:cart_items, [])
-    |> feed(:lines, &CartLines.load/2, &Carts.list_items/1, cart_id, out)
+    |> feed(:lines, &CartLines.load/2, &Carts.load_items(&1, opts[:hold_ms]), cart_id, out)
   end
 
   def handle_event("update_quantity", %{"item-id" => id, "delta" => d}, s, out),

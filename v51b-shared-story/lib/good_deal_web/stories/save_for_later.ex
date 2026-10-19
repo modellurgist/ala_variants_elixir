@@ -1,6 +1,7 @@
 defmodule GoodDealWeb.Stories.SaveForLater do
   @moduledoc """
-  The shopper sets a line aside and later moves it back to the cart. Its view is the saved lines.
+  The shopper sets a line aside and later moves it back to the cart. Its view is the saved lines,
+  read from the store on mount; the cart's lines write the marks. Config: `cart_id`.
   Out: `:moved` (the line, back to the cart), `:count`.
   """
   use GoodDealWeb, :html
@@ -10,14 +11,25 @@ defmodule GoodDealWeb.Stories.SaveForLater do
   import GoodDeal.Components.Rows, only: [saved_row: 1]
 
   alias GoodDeal.State.SavedItems
+  alias GoodDeal.Foundation.Carts
   alias GoodDealWeb.Paradigms.Steps
 
   def parts, do: %{saved: SavedItems}
   def events, do: ~w(move_to_cart)
   def ports, do: %{in: [stash: :item], out: [moved: :item, count: :count]}
 
-  def mount(s, _opts, _out),
-    do: s |> assign(:saved, SavedItems.new([])) |> stream(:saved_items, [])
+  def mount(s, opts, out) do
+    s
+    |> assign(:saved, SavedItems.new([]))
+    |> stream(:saved_items, [])
+    |> Steps.feed(
+      :saved,
+      &SavedItems.load/2,
+      &Carts.list_saved/1,
+      opts[:cart_id],
+      &wire(&1, &2, &3, out)
+    )
+  end
 
   def input(s, :stash, item, out), do: run(s, &SavedItems.stash(&1, item), out)
 

@@ -39,10 +39,8 @@ defmodule GoodDeal.State.Checkout do
     end
   end
 
-  defstruct step: nil,
-            start: nil,
-            flow: [],
-            url_edges: [],
+  defstruct start: nil,
+            flow: nil,
             address: nil,
             stock_levels: nil,
             line_items: nil,
@@ -73,10 +71,8 @@ defmodule GoodDeal.State.Checkout do
 
   def new(opts) do
     %__MODULE__{
-      flow: Keyword.fetch!(opts, :flow),
+      flow: Transitions.new(opts),
       start: Keyword.fetch!(opts, :start),
-      step: Keyword.fetch!(opts, :start),
-      url_edges: Keyword.get(opts, :url_edges, []),
       address: %Address{},
       stock_levels: Keyword.fetch!(opts, :stock_levels),
       line_items: Keyword.fetch!(opts, :line_items),
@@ -90,8 +86,10 @@ defmodule GoodDeal.State.Checkout do
   @doc "Begin, given the cart's summary: an empty cart can't check out."
   def start(%__MODULE__{} = c, %{empty?: true}), do: {c, [blocked: :empty]}
 
-  def start(%__MODULE__{} = c, _summary),
-    do: {%{c | step: c.start}, [step: c.start, form: address_form(c)]}
+  def start(%__MODULE__{} = c, _summary) do
+    {c, outs} = on_flow(c, Transitions.move(c.flow, c.start))
+    {c, outs ++ [form: address_form(c)]}
+  end
 
   @doc "Show the address form as it stands."
   def show_form(%__MODULE__{} = c, _), do: {c, [form: address_form(c)]}
@@ -135,25 +133,23 @@ defmodule GoodDeal.State.Checkout do
     end
   end
 
-  def succeeded(%__MODULE__{} = c, url),
-    do: {%{c | step: :complete}, [step: :complete, done: url]}
+  def succeeded(%__MODULE__{} = c, url) do
+    {c, outs} = on_flow(c, Transitions.move(c.flow, :complete))
+    {c, outs ++ [done: url]}
+  end
 
-  def failed(%__MODULE__{} = c, _reason), do: {%{c | step: :error}, [step: :error]}
+  def failed(%__MODULE__{} = c, _reason), do: on_flow(c, Transitions.move(c.flow, :error))
 
   @doc "The URL asked for a step: honour it only along an allowed jump."
-  def goto(%__MODULE__{} = c, step) do
-    if {c.step, step} in c.url_edges, do: {%{c | step: step}, [step: step]}, else: {c, []}
-  end
+  def goto(%__MODULE__{} = c, step), do: on_flow(c, Transitions.jump(c.flow, step))
 
   # paying needs a non-empty cart whose lines are all in stock
   defp ready(items, stock_levels) do
     with {:ok, items} <- ValidateCheckout.call(items), do: CheckStock.call(items, stock_levels)
   end
 
-  defp advance(c, event) do
-    case Transitions.step(c.flow, c.step, event) do
-      {:moved, to} -> {%{c | step: to}, [step: to]}
-      {:stayed, _} -> {c, []}
-    end
-  end
+  defp advance(c, event), do: on_flow(c, Transitions.fire(c.flow, event))
+
+  defp on_flow(c, {:moved, step, flow}), do: {%{c | flow: flow}, [step: step]}
+  defp on_flow(c, :stayed), do: {c, []}
 end

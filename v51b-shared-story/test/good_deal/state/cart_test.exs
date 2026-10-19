@@ -63,9 +63,17 @@ defmodule GoodDeal.State.CartTest do
                outs[:contents]
     end
 
+    test "a removed line is held in the store, and a line received back is kept" do
+      {cart, outs} = CartLines.remove(lines([line_item(1)]), %{item_id: 1})
+      assert outs[:changed] == {:aside, :held, 1, 1}
+      {_, outs} = CartLines.receive(cart, line_item(1))
+      assert outs[:changed] == {:kept, 1, 1}
+    end
+
     test "saving a line for later sends it out as saved, not removed" do
       {_, outs} = CartLines.save_for_later(lines([line_item(1)]), %{item_id: 1})
       assert %{id: 1} = outs[:saved]
+      assert outs[:changed] == {:aside, :saved, 1, 1}
       refute Keyword.has_key?(outs, :removed)
     end
 

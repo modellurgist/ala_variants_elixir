@@ -87,5 +87,6 @@ paradigm already threads. `lint.exs` holds the layer map so the score is reprodu
   meets once, in `line_row/1`.
 - The cart page grew by thirty lines (two stories' events and wires where there was one); the
   portal by none; `lib/` shrank by 250 non-blank lines with `EditOrder` and `OrderLines` gone.
-- `PriceOrder.mount/3` is a one-line pass-through to `OrderTotals.new/1`, reported (not scored) by
-  the linter; it is the story's own interface and stays.
+- `PriceOrder.mount/3` assigns a built `OrderTotals` to the socket. Until 2026-10-19 the linter read
+  that as a pass-through and left R7 unmet from `--strict`; it now reads an `assign` of a built
+  value as building state, as it already read a struct update.

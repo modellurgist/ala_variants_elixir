@@ -7,6 +7,8 @@ defmodule GoodDeal.Foundation.Schemas.CartItem do
   schema "cart_items" do
     field :quantity, :integer
     field :cart_id, :id
+    field :removed_at, :utc_datetime_usec
+    field :saved_at, :utc_datetime_usec
     belongs_to :product, Product
 
     timestamps()

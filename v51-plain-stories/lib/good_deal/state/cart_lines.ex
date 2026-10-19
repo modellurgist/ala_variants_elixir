@@ -8,11 +8,12 @@ defmodule GoodDeal.State.CartLines do
     * `:contents`  `%{lines: [%{quantity, product: %{amount}}], wrapped_count}`, after any change
     * `:removed` / `:saved`  the line that left, and why
     * `:line`      a line handed out on request (to the wishlist, say)
-    * `:changed`   what to write to the store: `{:quantity, cart_id, item_id, qty}` or `{:removed, cart_id, item_id}`
+    * `:changed`   what to write to the store: `{:quantity, cart_id, item_id, qty}`, a line saved
+      for later `{:saved, cart_id, item_id}`, or a removed line `{:held, cart_id, item_id}` until it
+      is `{:removed, ...}` for good; a line back in the cart is `{:kept, cart_id, item_id}`
     * `:checkout_requested`  the cart's id and stored lines, `{cart_id, items}`, never the cart
   """
   alias GoodDeal.Lines
-  alias GoodDeal.Domain.StockStatus
 
   defstruct cart_id: nil, items: [], wrapped: MapSet.new(), stock_status: nil
 
@@ -67,30 +68,22 @@ defmodule GoodDeal.State.CartLines do
     end
   end
 
-  def remove(%__MODULE__{} = cart, %{item_id: id}) do
-    case take_out(cart, id) do
-      {:ok, cart, row, item} ->
-        {cart, [rows: {:removed, row}, removed: item, contents: contents(cart)]}
+  def remove(%__MODULE__{} = cart, %{item_id: id}),
+    do: take_out(cart, id, :held, &[removed: &1])
 
-      :error ->
-        {cart, []}
-    end
-  end
-
-  def save_for_later(%__MODULE__{} = cart, %{item_id: id}) do
-    case take_out(cart, id) do
-      {:ok, cart, row, item} ->
-        {cart, [rows: {:removed, row}, saved: item, contents: contents(cart)]}
-
-      :error ->
-        {cart, []}
-    end
-  end
+  def save_for_later(%__MODULE__{} = cart, %{item_id: id}),
+    do: take_out(cart, id, :saved, &[saved: &1])
 
   @doc "A line comes (back) into the cart: an undone removal, a saved item, a wishlisted product."
   def receive(%__MODULE__{} = cart, item) do
     cart = %{cart | items: Lines.add(cart.items, item)}
-    {cart, [rows: {:added, row(cart, item)}, contents: contents(cart)]}
+
+    {cart,
+     [
+       rows: {:added, row(cart, item)},
+       contents: contents(cart),
+       changed: {:kept, cart.cart_id, item.id}
+     ]}
   end
 
   @doc "A removal is final: write it."
@@ -110,6 +103,7 @@ defmodule GoodDeal.State.CartLines do
     end
   end
 
+  # ala:accept clone -- the shared concept is Lines.set_stock; the rest is each state's own port adapter
   def set_stock(%__MODULE__{} = cart, %{product_id: product_id, stock: stock}) do
     case Lines.set_stock(cart.items, product_id, stock) do
       {:ok, items, item} ->
@@ -125,14 +119,19 @@ defmodule GoodDeal.State.CartLines do
   def request_checkout(%__MODULE__{} = cart, _),
     do: {cart, [checkout_requested: {cart.cart_id, cart.items}]}
 
-  defp take_out(cart, id) do
+  # the line leaves through `left`, and stays in the store under `mark` until it's kept or removed
+  defp take_out(cart, id, mark, left) do
     case Lines.remove(cart.items, id) do
       {:ok, remaining, item} ->
         row = row(cart, item)
-        {:ok, %{cart | items: remaining, wrapped: MapSet.delete(cart.wrapped, id)}, row, item}
+        cart = %{cart | items: remaining, wrapped: MapSet.delete(cart.wrapped, id)}
+
+        {cart,
+         [rows: {:removed, row}] ++
+           left.(item) ++ [contents: contents(cart), changed: {mark, cart.cart_id, id}]}
 
       :error ->
-        :error
+        {cart, []}
     end
   end
 
@@ -146,20 +145,12 @@ defmodule GoodDeal.State.CartLines do
       wrapped_count: MapSet.size(cart.wrapped)
     }
 
-  # the projected value a displayed line carries: a neutral shape, never the item struct
   defp row(cart, item) do
-    %{
-      id: item.id,
+    item
+    |> Lines.row(cart.stock_status)
+    |> Map.merge(%{
       product_id: item.product.id,
-      product: %{
-        thumbnail: item.product.thumbnail,
-        name: item.product.name,
-        amount: item.product.amount
-      },
-      stock_status: StockStatus.call(cart.stock_status, item.product.stock),
-      quantity: item.quantity,
-      line_total: Money.new(item.product.amount * item.quantity),
       gift_wrapped: MapSet.member?(cart.wrapped, item.id)
-    }
+    })
   end
 end

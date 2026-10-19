@@ -170,7 +170,11 @@ process and the same call, effects happen in output order with no message betwee
   `handle_params/3` looks the URL segment up in `@steps_by_url` and calls `Checkout.goto/2`; the
   feature decides whether to honour it. A `step` output lands as `Steps.patch(@step_paths, step)`.
 - **Timers:** the undo window is `Steps.start_timer(:undo, item, ms)`, which sends `{:timer, :undo,
-  item}` back to the page; one `handle_info` clause routes it to `Undo.expire/2`.
+  item}` back to the page; one `handle_info` clause routes it to `Undo.expire/2`. The removal is
+  written when it happens, as a hold (`{:held, ...}` sets the row's `removed_at`, which every read
+  skips), so the timer only makes it final. A page closed inside the window leaves the hold; the
+  next `mount/3` ends it (`Carts.finalize_holds/2` with the window), and recording an order ends all
+  of them.
 - **Async:** the payment is a LiveView task started in a `wire/3` clause; three `handle_async(:payment,
   ...)` clauses route success, failure and a crash to `Checkout.succeeded/2` and `Checkout.failed/2`.
 - **Store I/O:** reads go through `Steps.feed` with a plain function capture (`&Carts.list_items/1`).

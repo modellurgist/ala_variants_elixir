@@ -12,7 +12,6 @@ defmodule GoodDeal.State.OrderLines do
     CalculateShipping,
     CalculateSubtotal,
     ItemCount,
-    StockStatus,
     VolumeTier
   }
 
@@ -105,7 +104,14 @@ defmodule GoodDeal.State.OrderLines do
     case Lines.remove(order.items, item_id) do
       {:ok, remaining, line} ->
         order = recalc(%{order | items: remaining})
-        {order, [rows: {:removed, row(order, line)}, removed: line, summary: summary(order)]}
+
+        {order,
+         [
+           rows: {:removed, row(order, line)},
+           removed: line,
+           summary: summary(order),
+           changed: {:held, order.cart_id, item_id}
+         ]}
 
       :error ->
         {order, []}
@@ -114,7 +120,13 @@ defmodule GoodDeal.State.OrderLines do
 
   def receive(%__MODULE__{} = order, item) do
     order = recalc(%{order | items: Lines.add(order.items, item)})
-    {order, [rows: {:added, row(order, item)}, summary: summary(order)]}
+
+    {order,
+     [
+       rows: {:added, row(order, item)},
+       summary: summary(order),
+       changed: {:kept, order.cart_id, item.id}
+     ]}
   end
 
   def confirm_removal(%__MODULE__{} = order, item_id),
@@ -145,19 +157,7 @@ defmodule GoodDeal.State.OrderLines do
     }
   end
 
-  def row(%__MODULE__{} = order, line) do
-    %{
-      id: line.id,
-      product: %{
-        thumbnail: line.product.thumbnail,
-        name: line.product.name,
-        amount: line.product.amount
-      },
-      stock_status: StockStatus.call(order.pricing.stock_status, line.product.stock),
-      quantity: line.quantity,
-      line_total: Money.new(line.product.amount * line.quantity)
-    }
-  end
+  def row(%__MODULE__{} = order, line), do: Lines.row(line, order.pricing.stock_status)
 
   def rows(%__MODULE__{items: items} = order), do: Enum.map(items, &row(order, &1))
 

@@ -7,12 +7,18 @@ defmodule GoodDeal.State.SavedItems do
 
   def ports,
     do: %{
-      in: [stash: :item, move_to_cart: :event],
+      in: [load: :items, stash: :item, move_to_cart: :event],
       out: [rows: :row_change, moved: :item, count: :count]
     }
 
   def new(_opts), do: %__MODULE__{}
   def count(%__MODULE__{items: items}), do: length(items)
+
+  @doc "The stored saved lines arrive: the display resets to them."
+  def load(%__MODULE__{} = saved, items) do
+    saved = %{saved | items: items}
+    {saved, [rows: {:reset, Enum.map(items, &row/1)}, count: count(saved)]}
+  end
 
   def stash(%__MODULE__{} = saved, item) do
     items =

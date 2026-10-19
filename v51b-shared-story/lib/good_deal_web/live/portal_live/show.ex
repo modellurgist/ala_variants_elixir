@@ -89,7 +89,12 @@ defmodule GoodDealWeb.PortalLive.Show do
      |> UndoRemoval.mount([timer: :undo, window_ms: Catalog.undo_window_ms()], out(:undo))
      |> PriceOrder.mount([pricing: pricing], out(:price))
      |> EditLines.mount(
-       [cart_id: cart_id, stock_status: stock_status, stream: :order_lines],
+       [
+         cart_id: cart_id,
+         stock_status: stock_status,
+         stream: :order_lines,
+         hold_ms: Catalog.undo_window_ms()
+       ],
        out(:edit_lines)
      )
      |> BrowseCatalog.mount([stock_status: stock_status], out(:catalog))
@@ -146,7 +151,10 @@ defmodule GoodDealWeb.PortalLive.Show do
   defp wire(s, :price, {:summary, summary}), do: assign(s, :summary, summary)
   defp wire(s, :price, {:review, summary}), do: to(s, :submit, :review, summary)
   defp wire(s, :undo, {:pending, pending}), do: assign(s, :undo_pending, pending)
-  defp wire(s, :undo, {:restored, item}), do: to(s, :edit_lines, :receive, item)
+
+  defp wire(s, :undo, {:restored, item}),
+    do: s |> to(:edit_lines, :receive, item) |> put_flash(:info, "Item restored")
+
   defp wire(s, :undo, {:expired, item_id}), do: to(s, :edit_lines, :confirm_removal, item_id)
 
   defp wire(s, :catalog, {:requested, request}),

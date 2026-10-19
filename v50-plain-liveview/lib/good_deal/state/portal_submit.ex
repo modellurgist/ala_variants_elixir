@@ -25,7 +25,7 @@ defmodule GoodDeal.State.PortalSubmit do
     end
   end
 
-  defstruct step: nil, flow: [], url_edges: [], po: nil, order_id: nil, messages: %{}
+  defstruct flow: nil, po: nil, order_id: nil, messages: %{}
 
   def ports,
     do: %{
@@ -43,9 +43,7 @@ defmodule GoodDeal.State.PortalSubmit do
 
   def new(opts) do
     %__MODULE__{
-      flow: Keyword.fetch!(opts, :flow),
-      step: Keyword.fetch!(opts, :start),
-      url_edges: Keyword.get(opts, :url_edges, []),
+      flow: Transitions.new(opts),
       messages: Keyword.fetch!(opts, :messages),
       po: %PO{}
     }
@@ -77,14 +75,10 @@ defmodule GoodDeal.State.PortalSubmit do
     {s, outs ++ [reference: order_id]}
   end
 
-  def goto(%__MODULE__{} = s, step) do
-    if {s.step, step} in s.url_edges, do: {%{s | step: step}, [step: step]}, else: {s, []}
-  end
+  def goto(%__MODULE__{} = s, step), do: on_flow(s, Transitions.jump(s.flow, step))
 
-  defp advance(s, event) do
-    case Transitions.step(s.flow, s.step, event) do
-      {:moved, to} -> {%{s | step: to}, [step: to]}
-      {:stayed, _} -> {s, []}
-    end
-  end
+  defp advance(s, event), do: on_flow(s, Transitions.fire(s.flow, event))
+
+  defp on_flow(s, {:moved, step, flow}), do: {%{s | flow: flow}, [step: step]}
+  defp on_flow(s, :stayed), do: {s, []}
 end

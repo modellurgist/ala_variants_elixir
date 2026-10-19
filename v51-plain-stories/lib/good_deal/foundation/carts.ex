@@ -38,7 +38,17 @@ defmodule GoodDeal.Foundation.Carts do
   @spec list_items(integer()) :: [CartItem.t()]
   def list_items(cart_id) do
     CartItem
-    |> where([ci], ci.cart_id == ^cart_id)
+    |> where([ci], ci.cart_id == ^cart_id and is_nil(ci.removed_at) and is_nil(ci.saved_at))
+    |> preload(:product)
+    |> Repo.all()
+  end
+
+  @doc "The lines set aside for later: kept with the cart but out of its contents and its order."
+  @spec list_saved(integer()) :: [CartItem.t()]
+  def list_saved(cart_id) do
+    CartItem
+    |> where([ci], ci.cart_id == ^cart_id and is_nil(ci.removed_at) and not is_nil(ci.saved_at))
+    |> order_by([ci], asc: ci.saved_at, asc: ci.id)
     |> preload(:product)
     |> Repo.all()
   end
@@ -46,9 +56,16 @@ defmodule GoodDeal.Foundation.Carts do
   @spec add_item(integer(), GoodDeal.Foundation.Schemas.Product.t()) ::
           {:ok, CartItem.t()} | {:error, Ecto.Changeset.t()}
   def add_item(cart_id, product) do
+    # a held line for this product would swallow the new one and leave with it
+    CartItem
+    |> where([ci], ci.cart_id == ^cart_id and ci.product_id == ^product.id)
+    |> where([ci], not is_nil(ci.removed_at))
+    |> Repo.delete_all()
+
+    # one line per product, so a saved one is the line it adds to, back in the cart
     Repo.insert(%CartItem{cart_id: cart_id, product: product, quantity: 1},
       conflict_target: [:cart_id, :product_id],
-      on_conflict: [inc: [quantity: 1]]
+      on_conflict: [inc: [quantity: 1], set: [saved_at: nil]]
     )
   end
 
@@ -69,6 +86,32 @@ defmodule GoodDeal.Foundation.Carts do
     |> Repo.delete_all()
   end
 
+  @doc """
+  Make held removals final: those held for at least `window_ms`, or all of them. A hold whose page
+  is gone has no clock left, so this is what ends it.
+  """
+  @spec finalize_holds(integer(), non_neg_integer()) :: {non_neg_integer(), nil}
+  def finalize_holds(cart_id, window_ms \\ 0) do
+    cutoff = DateTime.add(DateTime.utc_now(), -window_ms, :millisecond)
+
+    CartItem
+    |> where([ci], ci.cart_id == ^cart_id and ci.removed_at <= ^cutoff)
+    |> Repo.delete_all()
+  end
+
+  @doc "The lines a page opens with: holds older than `hold_ms` are made final first."
+  @spec load_items(integer(), non_neg_integer()) :: [CartItem.t()]
+  def load_items(cart_id, hold_ms) do
+    finalize_holds(cart_id, hold_ms)
+    list_items(cart_id)
+  end
+
+  defp mark(cart_id, item_id, marks) do
+    CartItem
+    |> where([ci], ci.cart_id == ^cart_id and ci.id == ^item_id)
+    |> Repo.update_all(set: marks)
+  end
+
   @spec complete(Cart.t()) :: {:ok, Cart.t()} | {:error, Ecto.Changeset.t()}
   def complete(%Cart{} = cart) do
     cart
@@ -76,9 +119,19 @@ defmodule GoodDeal.Foundation.Carts do
     |> Repo.update()
   end
 
-  @doc "Apply a change to a stored line: `{:quantity, cart_id, item_id, qty}` or `{:removed, cart_id, item_id}`."
+  @doc """
+  Apply a change to a stored line: `{:quantity, cart_id, item_id, qty}`, `{:held, cart_id, item_id}`
+  (removed but undoable, left out of every read), `{:saved, cart_id, item_id}` (read only by
+  `list_saved/1`), `{:kept, cart_id, item_id}` (back in the cart) or `{:removed, cart_id, item_id}`.
+  """
   def apply_change({:quantity, cart_id, item_id, quantity}),
     do: update_quantity(cart_id, item_id, quantity)
 
   def apply_change({:removed, cart_id, item_id}), do: remove_item(cart_id, item_id)
+  def apply_change({mark, cart_id, item_id}), do: mark(cart_id, item_id, marks(mark))
+
+  # held, saved and kept only mark the row; the reads above decide what each mark hides
+  defp marks(:held), do: [removed_at: DateTime.utc_now()]
+  defp marks(:saved), do: [saved_at: DateTime.utc_now()]
+  defp marks(:kept), do: [removed_at: nil, saved_at: nil]
 end

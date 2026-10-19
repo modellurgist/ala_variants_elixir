@@ -66,6 +66,7 @@ defmodule GoodDealWeb.PortalLive.Show do
   @impl true
   def mount(_params, session, socket) do
     cart_id = CartSession.fetch(session, CartSession.portal_key())
+    Carts.finalize_holds(cart_id, Catalog.undo_window_ms())
 
     pricing = %{
       shipping: CalculateShipping.new(Catalog.rates()),
@@ -183,6 +184,7 @@ defmodule GoodDealWeb.PortalLive.Show do
       |> Steps.stop_timer(:undo)
       |> assign(:undo_pending, false)
       |> run(:order, &OrderLines.receive(&1, item))
+      |> put_flash(:info, "Item restored")
 
   defp wire(s, :undo, {:expired, item_id}),
     do: s |> assign(:undo_pending, false) |> run(:order, &OrderLines.confirm_removal(&1, item_id))

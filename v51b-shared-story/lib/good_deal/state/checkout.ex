@@ -104,7 +104,9 @@ defmodule GoodDeal.State.Checkout do
 
     case Ecto.Changeset.apply_action(changeset, :insert) do
       {:ok, address} ->
-        {c, outs} = advance(%{c | address: address}, :submit_address)
+        {c, outs} =
+          move(%{c | address: address}, Transitions.next(c.flow, c.step, :submit_address))
+
         {c, [address: address] ++ outs}
 
       {:error, changeset} ->
@@ -112,7 +114,8 @@ defmodule GoodDeal.State.Checkout do
     end
   end
 
-  def edit_address(%__MODULE__{} = c, _), do: advance(c, :edit_address)
+  def edit_address(%__MODULE__{} = c, _),
+    do: move(c, Transitions.next(c.flow, c.step, :edit_address))
 
   @doc """
   Pay for a cart's stored lines, `{cart_id, items}`, after asking the configured stock source for
@@ -121,7 +124,7 @@ defmodule GoodDeal.State.Checkout do
   def pay(%__MODULE__{} = c, {cart_id, items}) do
     case ready(items, c.stock_levels.(Enum.map(items, & &1.product.id))) do
       :ok ->
-        {c, outs} = advance(c, :pay)
+        {c, outs} = move(c, Transitions.next(c.flow, c.step, :pay))
 
         {c,
          outs ++
@@ -141,19 +144,13 @@ defmodule GoodDeal.State.Checkout do
   def failed(%__MODULE__{} = c, _reason), do: {%{c | step: :error}, [step: :error]}
 
   @doc "The URL asked for a step: honour it only along an allowed jump."
-  def goto(%__MODULE__{} = c, step) do
-    if {c.step, step} in c.url_edges, do: {%{c | step: step}, [step: step]}, else: {c, []}
-  end
+  def goto(%__MODULE__{} = c, step), do: move(c, Transitions.jump(c.url_edges, c.step, step))
 
   # paying needs a non-empty cart whose lines are all in stock
   defp ready(items, stock_levels) do
     with {:ok, items} <- ValidateCheckout.call(items), do: CheckStock.call(items, stock_levels)
   end
 
-  defp advance(c, event) do
-    case Transitions.step(c.flow, c.step, event) do
-      {:moved, to} -> {%{c | step: to}, [step: to]}
-      {:stayed, _} -> {c, []}
-    end
-  end
+  defp move(%{step: step} = c, step), do: {c, []}
+  defp move(c, to), do: {%{c | step: to}, [step: to]}
 end

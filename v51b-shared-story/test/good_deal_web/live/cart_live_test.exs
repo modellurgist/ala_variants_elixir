@@ -5,8 +5,11 @@ defmodule GoodDealWeb.CartLiveTest do
   import Phoenix.LiveViewTest
   import GoodDeal.StoreFixtures
   import Mox
+  import Ecto.Query
 
-  alias GoodDeal.Foundation.Carts
+  alias GoodDeal.{Catalog, Repo}
+  alias GoodDeal.Foundation.{Carts, Products}
+  alias GoodDeal.Foundation.Schemas.CartItem
 
   setup :verify_on_exit!
 
@@ -16,6 +19,29 @@ defmodule GoodDealWeb.CartLiveTest do
     {:ok, lv, _html} = live(conn, ~p"/cart")
     item_a = Carts.list_items(cart.id) |> Enum.find(&(&1.product.id == a.id))
     %{lv: lv, cart: cart, product_a: a, product_b: b, item_a: item_a}
+  end
+
+  # the page reopened on the same cart, as a reload would
+  defp open_cart_in(conn) do
+    {cart, [a, _b]} = cart_with_items_fixture()
+    conn = init_test_session(conn, %{cart_id: cart.id})
+    {:ok, lv, _html} = live(conn, ~p"/cart")
+    item_a = Carts.list_items(cart.id) |> Enum.find(&(&1.product.id == a.id))
+    %{conn: conn, lv: lv, cart: cart, product_a: a, item_a: item_a}
+  end
+
+  # the rows as stored, held or not: what a read that forgets the hold would see
+  defp stored(cart_id), do: Repo.all(from ci in CartItem, where: ci.cart_id == ^cart_id)
+
+  defp held_since(item_id, ms_ago) do
+    at = DateTime.add(DateTime.utc_now(), -ms_ago, :millisecond)
+    Repo.update_all(from(ci in CartItem, where: ci.id == ^item_id), set: [removed_at: at])
+  end
+
+  defp close(lv) do
+    ref = Process.monitor(lv.pid)
+    GenServer.stop(lv.pid, :normal)
+    assert_receive {:DOWN, ^ref, _, _, _}
   end
 
   defp click(lv, event, item_id) do
@@ -82,7 +108,7 @@ defmodule GoodDealWeb.CartLiveTest do
     test "when the undo window elapses the removal is persisted", %{conn: conn} do
       %{lv: lv, cart: cart, item_a: item_a, product_a: a} = open_cart(conn)
       click(lv, "remove_item", item_a.id)
-      assert Carts.list_items(cart.id) |> Enum.any?(&(&1.id == item_a.id))
+      assert stored(cart.id) |> Enum.any?(&(&1.id == item_a.id))
 
       send(lv.pid, {:timer, :undo, item_a})
       html = render(lv)
@@ -106,6 +132,26 @@ defmodule GoodDealWeb.CartLiveTest do
       refute html =~ a.name
     end
 
+    test "a removal held when the page closes stays removed, and is final once the window elapses",
+         %{conn: conn} do
+      {cart, [a, _b]} = cart_with_items_fixture()
+      conn = init_test_session(conn, %{cart_id: cart.id})
+      {:ok, lv, _html} = live(conn, ~p"/cart")
+      item_a = Carts.list_items(cart.id) |> Enum.find(&(&1.product.id == a.id))
+
+      click(lv, "remove_item", item_a.id)
+      close(lv)
+
+      {:ok, lv, html} = live(conn, ~p"/cart")
+      refute html =~ a.name
+      close(lv)
+
+      held_since(item_a.id, Catalog.undo_window_ms() + 1_000)
+      {:ok, _lv, html} = live(conn, ~p"/cart")
+      refute html =~ a.name
+      refute stored(cart.id) |> Enum.any?(&(&1.id == item_a.id))
+    end
+
     test "toggle gift wrap adds a gift-wrap line to the summary", %{conn: conn} do
       %{lv: lv, item_a: item_a} = open_cart(conn)
       html = click(lv, "toggle_gift_wrap", item_a.id)
@@ -123,6 +169,36 @@ defmodule GoodDealWeb.CartLiveTest do
       assert render(lv) =~ "Move to cart"
 
       assert click(lv, "move_to_cart", item_a.id) =~ "Moved to cart"
+    end
+
+    test "a saved item stays in the Saved tab and out of the cart after a reload", %{conn: conn} do
+      %{conn: conn, lv: lv, cart: cart, item_a: item_a, product_a: a} = open_cart_in(conn)
+
+      click(lv, "save_for_later", item_a.id)
+      close(lv)
+
+      {:ok, lv, _html} = live(conn, ~p"/cart")
+      refute has_element?(lv, "#cart_items", a.name)
+      assert has_element?(lv, "#saved_items", a.name)
+      refute Carts.list_items(cart.id) |> Enum.any?(&(&1.id == item_a.id))
+    end
+
+    test "moving a saved item to the cart brings it back as a line that stays", %{conn: conn} do
+      %{conn: conn, lv: lv, cart: cart, item_a: item_a, product_a: a} = open_cart_in(conn)
+
+      click(lv, "save_for_later", item_a.id)
+      close(lv)
+      {:ok, lv, _html} = live(conn, ~p"/cart")
+
+      assert click(lv, "move_to_cart", item_a.id) =~ "Moved to cart"
+      assert has_element?(lv, "#cart_items", a.name)
+      refute has_element?(lv, "#saved_items", a.name)
+      close(lv)
+
+      {:ok, lv, _html} = live(conn, ~p"/cart")
+      assert has_element?(lv, "#cart_items", a.name)
+      refute has_element?(lv, "#saved_items", a.name)
+      assert Carts.list_items(cart.id) |> Enum.any?(&(&1.id == item_a.id))
     end
 
     test "wishlist a cart item, see it in the Wishlist tab, add it back", %{conn: conn} do
@@ -220,6 +296,66 @@ defmodule GoodDealWeb.CartLiveTest do
       assert html =~ "Processing payment"
       assert_redirect(lv, ~p"/cart/success")
       assert GoodDeal.Foundation.Carts.get(cart.id).status == :completed
+    end
+
+    test "paying while a removal is held neither charges, deducts nor records the held line",
+         %{conn: conn} do
+      %{lv: lv, cart: cart, item_a: item_a, product_a: a, product_b: b} = open_cart(conn)
+      test_pid = self()
+
+      GoodDeal.MockPaymentGateway
+      |> expect(:charge, fn amount, _, _ ->
+        send(test_pid, {:charged, amount})
+        {:ok, "chg_held"}
+      end)
+
+      click(lv, "remove_item", item_a.id)
+      lv |> element("button", "Checkout") |> render_click()
+
+      lv
+      |> form("[phx-submit=submit_address]",
+        address: %{name: "Ada", line1: "1 Ave", city: "London", postal_code: "12345"}
+      )
+      |> render_submit()
+
+      lv |> element("button", "Pay") |> render_click()
+      assert_redirect(lv, ~p"/cart/success")
+
+      assert_received {:charged, 2500}
+      assert Products.get!(a.id).stock == 10
+      assert Products.get!(b.id).stock == 4
+      assert [%{product_id: product_id}] = stored(cart.id)
+      assert product_id == b.id
+    end
+
+    test "paying with an item saved for later neither charges, deducts nor records it",
+         %{conn: conn} do
+      %{lv: lv, cart: cart, item_a: item_a, product_a: a, product_b: b} = open_cart(conn)
+      test_pid = self()
+
+      GoodDeal.MockPaymentGateway
+      |> expect(:charge, fn amount, _, _ ->
+        send(test_pid, {:charged, amount})
+        {:ok, "chg_saved"}
+      end)
+
+      click(lv, "save_for_later", item_a.id)
+      lv |> element("button", "Checkout") |> render_click()
+
+      lv
+      |> form("[phx-submit=submit_address]",
+        address: %{name: "Ada", line1: "1 Ave", city: "London", postal_code: "12345"}
+      )
+      |> render_submit()
+
+      lv |> element("button", "Pay") |> render_click()
+      assert_redirect(lv, ~p"/cart/success")
+
+      assert_received {:charged, 2500}
+      assert Products.get!(a.id).stock == 10
+      assert Products.get!(b.id).stock == 4
+      assert [%{product_id: product_id}] = Carts.list_items(cart.id)
+      assert product_id == b.id
     end
 
     test "a failed payment offers a retry that pays again", %{conn: conn} do

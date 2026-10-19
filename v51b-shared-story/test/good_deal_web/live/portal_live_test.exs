@@ -4,6 +4,11 @@ defmodule GoodDealWeb.PortalLiveTest do
 
   import Phoenix.LiveViewTest
   import GoodDeal.StoreFixtures
+  import Ecto.Query
+
+  alias GoodDeal.Repo
+  alias GoodDeal.Foundation.Carts
+  alias GoodDeal.Foundation.Schemas.CartItem
 
   defp open_portal(conn) do
     a = product_fixture(%{name: "Bulk Widget", amount: 10_000, stock: 50})
@@ -117,5 +122,54 @@ defmodule GoodDealWeb.PortalLiveTest do
     html = lv |> element("button", "Undo") |> render_click()
     refute html =~ "Item removed."
     assert html =~ "Bulk Widget"
+  end
+
+  test "undoing a removal flashes that the item is back", %{conn: conn} do
+    %{lv: lv, product_a: a} = open_portal(conn)
+
+    lv
+    |> element(~s(#portal_products-#{a.id} form))
+    |> render_submit(%{"product-id" => a.id, "quantity" => "2"})
+
+    lv |> element(~s(#order_lines button), "Remove") |> render_click()
+    html = lv |> element("button", "Undo") |> render_click()
+    assert html =~ "Item restored"
+  end
+
+  test "submitting while a removal is held doesn't record the held line", %{conn: conn} do
+    %{lv: lv, product_a: a, product_b: b} = open_portal(conn)
+
+    for {product, quantity} <- [{a, "2"}, {b, "1"}] do
+      lv
+      |> element(~s(#portal_products-#{product.id} form))
+      |> render_submit(%{"product-id" => product.id, "quantity" => quantity})
+    end
+
+    cart_id = :sys.get_state(lv.pid).socket.assigns.lines.cart_id
+    held = Carts.list_items(cart_id) |> Enum.find(&(&1.product.id == a.id))
+    lv |> element(~s(#order_lines-#{held.id} button), "Remove") |> render_click()
+
+    lv |> element("button", "Review order") |> render_click()
+    lv |> form("form", po: %{number: "PO-2026"}) |> render_submit()
+    assert_patch(lv, ~p"/portal/submitted")
+
+    stored = Repo.all(from ci in CartItem, where: ci.cart_id == ^cart_id)
+    assert [%{product_id: product_id}] = stored
+    assert product_id == b.id
+  end
+
+  # the review button is disabled once the order empties; a click already in flight still arrives
+  test "an info and an error flash show together under distinct ids", %{conn: conn} do
+    %{lv: lv, product_a: a} = open_portal(conn)
+
+    lv
+    |> element(~s(#portal_products-#{a.id} form))
+    |> render_submit(%{"product-id" => a.id, "quantity" => "2"})
+
+    lv |> element(~s(#order_lines button), "Remove") |> render_click()
+    render_click(lv, "go_review", %{})
+
+    assert has_element?(lv, "#flash-info", "Added to order")
+    assert has_element?(lv, "#flash-error", "Your order is empty")
   end
 end

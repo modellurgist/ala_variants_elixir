@@ -2,8 +2,15 @@ defmodule GoodDeal.State.CartTest do
   use ExUnit.Case, async: true
 
   import GoodDeal.CartFixtures
-  alias GoodDeal.State.{CartLines, CartTotals, Promo}
-  alias GoodDeal.Domain.{CalculateGiftWrapCost, CalculateShipping, StockStatus, ValidatePromo}
+  alias GoodDeal.State.{CartLines, CartTotals, OrderLines, Promo, SavedItems}
+
+  alias GoodDeal.Domain.{
+    CalculateGiftWrapCost,
+    CalculateShipping,
+    StockStatus,
+    ValidatePromo,
+    VolumeTier
+  }
 
   @rates %{
     standard: %{label: "Standard", cost: 599, free_above: 5000},
@@ -63,10 +70,22 @@ defmodule GoodDeal.State.CartTest do
                outs[:contents]
     end
 
+    test "a removed line is held in the store, and a line received back is kept" do
+      {cart, outs} = CartLines.remove(lines([line_item(1)]), %{item_id: 1})
+      assert outs[:changed] == {:held, 1, 1}
+      {_, outs} = CartLines.receive(cart, line_item(1))
+      assert outs[:changed] == {:kept, 1, 1}
+    end
+
     test "saving a line for later sends it out as saved, not removed" do
       {_, outs} = CartLines.save_for_later(lines([line_item(1)]), %{item_id: 1})
       assert %{id: 1} = outs[:saved]
       refute Keyword.has_key?(outs, :removed)
+    end
+
+    test "a line saved for later is written to the store as saved" do
+      {_, outs} = CartLines.save_for_later(lines([line_item(1)]), %{item_id: 1})
+      assert outs[:changed] == {:saved, 1, 1}
     end
 
     test "receiving a line twice keeps one" do
@@ -95,6 +114,33 @@ defmodule GoodDeal.State.CartTest do
     test "checkout gets the cart's id and stored lines" do
       {_, outs} = CartLines.request_checkout(lines([line_item(1)]), nil)
       assert {1, [%{id: 1}]} = outs[:checkout_requested]
+    end
+  end
+
+  describe "SavedItems" do
+    test "loading the stored saved lines resets the rows and the count" do
+      {saved, outs} = SavedItems.load(SavedItems.new([]), [line_item(1), line_item(2)])
+      assert {:reset, [%{id: 1}, %{id: 2}]} = outs[:rows]
+      assert outs[:count] == 2
+
+      assert {_, [rows: {:removed, %{id: 1}}, moved: %{id: 1}, count: 1]} =
+               SavedItems.move_to_cart(saved, %{item_id: 1})
+    end
+  end
+
+  describe "OrderLines" do
+    test "a removed line is held in the store, and a line received back is kept" do
+      pricing = %{
+        shipping: CalculateShipping.new(@rates),
+        volume: VolumeTier.new([]),
+        stock_status: StockStatus.new(low_at: 5)
+      }
+
+      order = OrderLines.new(cart_id: 1, items: [line_item(1)], pricing: pricing)
+      {order, outs} = OrderLines.remove(order, %{item_id: 1})
+      assert outs[:changed] == {:held, 1, 1}
+      {_, outs} = OrderLines.receive(order, line_item(1))
+      assert outs[:changed] == {:kept, 1, 1}
     end
   end
 

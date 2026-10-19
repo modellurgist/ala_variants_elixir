@@ -77,7 +77,10 @@ defmodule GoodDealWeb.PortalLive.Show do
        po: nil
      )
      |> UndoRemoval.mount([timer: :undo, window_ms: Catalog.undo_window_ms()], out(:undo))
-     |> EditOrder.mount([cart_id: cart_id, pricing: pricing], out(:order))
+     |> EditOrder.mount(
+       [cart_id: cart_id, pricing: pricing, hold_ms: Catalog.undo_window_ms()],
+       out(:order)
+     )
      |> BrowseCatalog.mount([stock_status: stock_status], out(:catalog))
      |> SubmitOrder.mount([cart_id: cart_id], out(:submit))}
   end
@@ -127,7 +130,10 @@ defmodule GoodDealWeb.PortalLive.Show do
   defp wire(s, :order, {:removed, item}), do: to(s, :undo, :capture, item)
   defp wire(s, :order, {:review, summary}), do: to(s, :submit, :review, summary)
   defp wire(s, :undo, {:pending, pending}), do: assign(s, :undo_pending, pending)
-  defp wire(s, :undo, {:restored, item}), do: to(s, :order, :receive, item)
+
+  defp wire(s, :undo, {:restored, item}),
+    do: s |> to(:order, :receive, item) |> put_flash(:info, "Item restored")
+
   defp wire(s, :undo, {:expired, item_id}), do: to(s, :order, :confirm_removal, item_id)
 
   defp wire(s, :catalog, {:requested, request}),

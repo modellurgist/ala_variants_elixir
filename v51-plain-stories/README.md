@@ -5,8 +5,32 @@ user-story modules and meet every rule `ala_lint` checks at its strictest tier, 
 plain LiveView.
 
 **Score:** full checklist by hand **100**. `ala_lint` 100/A at every tier, and **10 of 10 checked rules
-met under `--super-strict`**, the first variant to do so. **129 tests, 0 failures**, every declared output routed under the suite. Familiarity 4 of 5
+met under `--super-strict`**, the first variant to do so. **158 tests, 0 failures**, every declared output routed under the suite. Familiarity 4 of 5
 (judgement). No LiveComponents, so no relays between them.
+
+*Since 2026-10-19:* the linter's clone check (duplicated logic, R7) found four duplicates across
+modules. Three were one concept written twice and are now one abstraction each: the step machine
+`Checkout` and `PortalSubmit` both ran (fire an event along the flow table, honour a URL jump) is
+`Transitions`' machine, and the displayed row `CartLines` and `OrderLines` both projected is
+`Lines.row/2`. The fourth, `set_stock` in both, is accepted in the code: the shared part is already
+`Lines.set_stock`. Still 100 at every tier.
+
+*Fixes, 2026-10-19 (ported from V51B):* undo on the portal now flashes "Item restored" (R4.2); the
+info and error flashes have distinct ids (`flash-info`, `flash-error`); and a removed line is held in
+the store (a `removed_at` column, migration `20261019120000`) instead of left as a live row, so paying
+or submitting while a removal is undoable no longer deducts or records it, and a removal survives the
+page closing (R4.3): `Carts.load_items/2` makes elapsed holds final when either editing story mounts,
+and `Orders.create/1` makes all of them final. Adding a product whose line is held replaces the held
+line. Each fix has a regression test that failed first. Run `mix ecto.migrate` for the dev database.
+
+*Fix, 2026-10-19:* save for later wrote nothing, so a saved line stayed a live cart row: paying
+charged nothing for it but still deducted its stock and kept it in the order's lines, and a reload put
+it back in the cart. It is now marked in the store (a `saved_at` column, migration
+`20261019130000`): `CartLines.save_for_later` sends `{:saved, cart_id, item_id}` on `changed`,
+`Carts.list_items/1` (the cart's lines, settlement, the order) leaves saved rows out,
+`Carts.list_saved/1` reads them into the Saved tab when `SaveForLater` mounts, and moving one to the
+cart sends the existing `{:kept, ...}`, which now clears both marks. Adding a product whose line is
+saved brings that line back into the cart, one more. Seven regression tests failed first.
 
 ## The wiring as it ran (added 2026-10-16)
 

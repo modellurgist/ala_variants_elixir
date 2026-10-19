@@ -135,9 +135,12 @@ defmodule GoodDealWeb.CartLive.Show do
        address: nil
      )
      |> UndoRemoval.mount([timer: :undo, window_ms: Catalog.undo_window_ms()], out(:undo))
-     |> SaveForLater.mount([], out(:saved))
+     |> SaveForLater.mount([cart_id: cart_id], out(:saved))
      |> KeepWishlist.mount([], out(:wishlist))
-     |> EditCart.mount([cart_id: cart_id, pricing: pricing], out(:edit_cart))
+     |> EditCart.mount(
+       [cart_id: cart_id, pricing: pricing, hold_ms: Catalog.undo_window_ms()],
+       out(:edit_cart)
+     )
      |> CheckOut.mount([task: :payment] ++ payment, out(:check_out))}
   end
 

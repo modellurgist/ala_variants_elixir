@@ -104,6 +104,7 @@ defmodule GoodDealWeb.CartLive.Show do
   @impl true
   def mount(_params, session, socket) do
     cart_id = CartSession.fetch(session)
+    Carts.finalize_holds(cart_id, Catalog.undo_window_ms())
 
     pricing = %{
       shipping: CalculateShipping.new(Catalog.rates()),
@@ -158,6 +159,7 @@ defmodule GoodDealWeb.CartLive.Show do
      |> stream(:saved_items, [])
      |> stream(:wishlist_products, [])
      |> Steps.feed(:cart, &Cart.load/2, &Carts.list_items/1, cart_id, &wire/3)
+     |> Steps.feed(:saved, &SavedItems.load/2, &Carts.list_saved/1, cart_id, &wire/3)
      |> run(:checkout, &Checkout.show_form(&1, nil))}
   end
 
@@ -323,6 +325,7 @@ defmodule GoodDealWeb.CartLive.Show do
 
   defp wire(s, :ui, {:tab, tab}), do: assign(s, :active_tab, tab)
 
+  # ala:accept clone -- wiring, not logic: each page lands its own flow's step and form
   defp wire(s, :checkout, {:step, step}),
     do: s |> assign(:step, step) |> Steps.patch(@step_paths, step)
 

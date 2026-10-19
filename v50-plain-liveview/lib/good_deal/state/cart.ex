@@ -8,13 +8,15 @@ defmodule GoodDeal.State.Cart do
     * `:summary`  the pricing summary (item count, subtotal, discount, gift wrap, shipping, total)
     * `:removed`  the line that left (so something can offer to bring it back)
     * `:saved`    the line set aside for later
-    * `:changed`  what changed in a stored line: `{:quantity, cart_id, item_id, qty}` or `{:removed, cart_id, item_id}`
+    * `:changed`  what changed in a stored line: `{:quantity, cart_id, item_id, qty}`, a saved line
+      `{:saved, cart_id, item_id}`, or a removed line `{:held, cart_id, item_id}` until it is
+      `{:kept, ...}` again or `{:removed, ...}` for good
     * `:promo_applied` / `:promo_rejected`  the code, after a promo attempt
 
   Nothing here names a stream, a message, or where any output goes.
   """
-  alias GoodDeal.Cart
-  alias GoodDeal.Domain.{CalculateShipping, StockStatus}
+  alias GoodDeal.{Cart, Lines}
+  alias GoodDeal.Domain.CalculateShipping
 
   @type t :: Cart.t()
 
@@ -83,30 +85,36 @@ defmodule GoodDeal.State.Cart do
     end
   end
 
-  def remove(%Cart{} = cart, %{item_id: item_id}) do
-    case Cart.remove_item(cart, item_id) do
-      {:ok, cart, item} ->
-        {cart, [rows: {:removed, row(cart, item)}, removed: item, summary: summary(cart)]}
-
-      :error ->
-        {cart, []}
-    end
-  end
+  def remove(%Cart{} = cart, %{item_id: item_id}),
+    do: take_out(cart, item_id, &[removed: &1], :held)
 
   @doc "A line comes (back) into the cart: an undone removal, a saved item, a wishlisted product."
   def receive(%Cart{} = cart, item) do
     {:ok, cart, item} = Cart.add_item(cart, item)
-    {cart, [rows: {:added, row(cart, item)}, summary: summary(cart)]}
+
+    {cart,
+     [
+       rows: {:added, row(cart, item)},
+       summary: summary(cart),
+       changed: {:kept, cart.cart_id, item.id}
+     ]}
   end
 
   @doc "A removal is final: write it."
   def confirm_removal(%Cart{} = cart, item_id),
     do: {cart, [changed: {:removed, cart.cart_id, item_id}]}
 
-  def save_for_later(%Cart{} = cart, %{item_id: item_id}) do
+  def save_for_later(%Cart{} = cart, %{item_id: item_id}),
+    do: take_out(cart, item_id, &[saved: &1], :saved)
+
+  # a line leaves the display; `announce` says why, and `mark` how its stored row is set aside
+  defp take_out(cart, item_id, announce, mark) do
     case Cart.remove_item(cart, item_id) do
       {:ok, cart, item} ->
-        {cart, [rows: {:removed, row(cart, item)}, saved: item, summary: summary(cart)]}
+        {cart,
+         [rows: {:removed, row(cart, item)}] ++
+           announce.(item) ++
+           [summary: summary(cart), changed: {mark, cart.cart_id, item_id}]}
 
       :error ->
         {cart, []}
@@ -135,6 +143,7 @@ defmodule GoodDeal.State.Cart do
     end
   end
 
+  # ala:accept clone -- the result-to-outputs shape of every input; OrderLines keeps its own data (§6.17.2)
   def set_stock(%Cart{} = cart, %{product_id: product_id, stock: stock}) do
     case Cart.set_stock(cart, product_id, stock) do
       {:ok, cart, item} -> {cart, [rows: {:changed, row(cart, item)}]}
@@ -142,22 +151,13 @@ defmodule GoodDeal.State.Cart do
     end
   end
 
-  @doc "The projected value a displayed line carries: a neutral shape, never the item struct."
-  def row(%Cart{} = cart, item) do
-    %{
-      id: item.id,
-      product_id: item.product.id,
-      product: %{
-        thumbnail: item.product.thumbnail,
-        name: item.product.name,
-        amount: item.product.amount
-      },
-      stock_status: StockStatus.call(cart.pricing.stock_status, item.product.stock),
-      quantity: item.quantity,
-      line_total: Money.new(item.product.amount * item.quantity),
-      gift_wrapped: Cart.gift_wrapped?(cart, item.id)
-    }
-  end
+  def row(%Cart{} = cart, item),
+    do:
+      Map.put(
+        Lines.row(item, cart.pricing.stock_status),
+        :gift_wrapped,
+        Cart.gift_wrapped?(cart, item.id)
+      )
 
   def rows(%Cart{} = cart), do: Enum.map(cart.items, &row(cart, &1))
 

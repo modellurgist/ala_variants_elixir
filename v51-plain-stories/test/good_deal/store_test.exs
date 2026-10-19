@@ -149,6 +149,75 @@ defmodule GoodDeal.Foundation.CartsTest do
     refute Enum.any?(remaining, &(&1.id == item_a.id))
   end
 
+  test "a held line is left out of list_items/1 until kept again" do
+    {cart, [product_a, _]} = cart_with_items_fixture()
+    item_a = find_item(cart.id, product_a)
+
+    Carts.apply_change({:held, cart.id, item_a.id})
+    refute cart.id |> Carts.list_items() |> Enum.any?(&(&1.id == item_a.id))
+
+    Carts.apply_change({:kept, cart.id, item_a.id})
+    assert cart.id |> Carts.list_items() |> Enum.any?(&(&1.id == item_a.id))
+  end
+
+  test "finalize_holds/2 deletes only lines held for at least the window" do
+    {cart, [product_a, product_b]} = cart_with_items_fixture()
+    [item_a, item_b] = for p <- [product_a, product_b], do: find_item(cart.id, p)
+    Carts.apply_change({:held, cart.id, item_a.id})
+    Carts.apply_change({:held, cart.id, item_b.id})
+    hours_ago = DateTime.add(DateTime.utc_now(), -3600, :second)
+
+    Repo.update_all(from(ci in CartItem, where: ci.id == ^item_a.id),
+      set: [removed_at: hours_ago]
+    )
+
+    assert {1, _} = Carts.finalize_holds(cart.id, 60_000)
+    assert [%{id: id}] = Repo.all(from ci in CartItem, where: ci.cart_id == ^cart.id)
+    assert id == item_b.id
+  end
+
+  test "adding a product whose line is held makes the hold final and starts a fresh line" do
+    {cart, [product_a, _]} = cart_with_items_fixture()
+    item_a = find_item(cart.id, product_a)
+    Carts.update_quantity(cart.id, item_a.id, 4)
+    Carts.apply_change({:held, cart.id, item_a.id})
+
+    assert {:ok, _} = Carts.add_item(cart.id, product_a)
+    fresh = find_item(cart.id, product_a)
+    assert fresh.quantity == 1
+    refute fresh.id == item_a.id
+  end
+
+  test "a saved line is read by list_saved/1, not list_items/1, until kept again" do
+    {cart, [product_a, _]} = cart_with_items_fixture()
+    item_a = find_item(cart.id, product_a)
+    id = item_a.id
+
+    Carts.apply_change({:saved, cart.id, id})
+    Carts.apply_change({:saved, cart.id, id})
+    refute cart.id |> Carts.list_items() |> Enum.any?(&(&1.id == id))
+    assert [%{id: ^id, product: %{name: "Widget"}}] = Carts.list_saved(cart.id)
+
+    Carts.apply_change({:kept, cart.id, id})
+    assert cart.id |> Carts.list_items() |> Enum.any?(&(&1.id == id))
+    assert Carts.list_saved(cart.id) == []
+  end
+
+  test "adding a product whose line is saved brings that line back into the cart, one more" do
+    {cart, [product_a, _]} = cart_with_items_fixture()
+    item_a = find_item(cart.id, product_a)
+    Carts.update_quantity(cart.id, item_a.id, 3)
+    Carts.apply_change({:saved, cart.id, item_a.id})
+
+    assert {:ok, _} = Carts.add_item(cart.id, product_a)
+    assert %{id: id, quantity: 4} = find_item(cart.id, product_a)
+    assert id == item_a.id
+    assert Carts.list_saved(cart.id) == []
+  end
+
+  defp find_item(cart_id, product),
+    do: cart_id |> Carts.list_items() |> Enum.find(&(&1.product.id == product.id))
+
   test "complete/1 marks a cart as completed" do
     {:ok, cart} = Carts.create()
     assert {:ok, %Cart{status: :completed}} = Carts.complete(cart)
@@ -159,7 +228,7 @@ defmodule GoodDeal.Foundation.OrdersTest do
   use GoodDeal.DataCase
 
   alias GoodDeal.Foundation.{Orders, Carts}
-  alias GoodDeal.Foundation.Schemas.Order
+  alias GoodDeal.Foundation.Schemas.{CartItem, Order}
 
   import GoodDeal.StoreFixtures
 
@@ -168,6 +237,15 @@ defmodule GoodDeal.Foundation.OrdersTest do
     assert {:ok, %Order{cart_id: cart_id}} = Orders.create(cart.id)
     assert cart_id == cart.id
     assert Carts.get(cart.id).status == :completed
+  end
+
+  test "create/1 makes the cart's held removals final" do
+    {cart, [product_a, _]} = cart_with_items_fixture()
+    item_a = cart.id |> Carts.list_items() |> Enum.find(&(&1.product.id == product_a.id))
+    Carts.apply_change({:held, cart.id, item_a.id})
+
+    {:ok, _} = Orders.create(cart.id)
+    refute Repo.get(CartItem, item_a.id)
   end
 end
 

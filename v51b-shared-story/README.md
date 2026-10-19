@@ -17,8 +17,21 @@ The running trace (`Steps.to/7`, `Steps.out/5`, `Trace`, the after-suite report 
 V50 and V51 as well; see `../v51-plain-stories/README.md` for it.
 
 **Score:** full checklist by hand **100**. `ala_lint` with `lint.exs`'s layer map: **100/A at every
-tier, 10 of 10 checked rules met under `--super-strict`**. **129 tests, 0 failures**, every declared
+tier, 10 of 10 checked rules met under `--super-strict`** (since 2026-10-19, when the linter stopped
+reading `PriceOrder.mount/3`'s `assign` of a built value as a pass-through). **147 tests, 0 failures**, every declared
 output routed under the suite. Familiarity 4 of 5 (judgement), as V51.
+
+*Since 2026-10-19:* the linter's clone check (duplicated logic, R7) found the step machine written
+twice, in `Checkout` and `PortalSubmit` (moving along the flow table, and the URL's allowed jumps).
+Both decisions now live in the state-machine paradigm, `Transitions.next/3` and `Transitions.jump/3`;
+each part keeps only setting its step and sending its own `step` output. No clones remain.
+
+*Since 2026-10-19:* save for later is stored. A saved line used to stay a live `cart_items` row, so
+payment bought it and a reload put it back in the cart. `CartLines` now marks it
+(`{:aside, :saved, ...}`, a `saved_at` column, as a held removal is marked `removed_at`), the cart's
+reads and settlement leave it out, `SaveForLater` loads the Saved tab from `Carts.list_saved/1`, and
+a line moved back is `{:kept, ...}` like an undone removal. Run `mix ecto.migrate` on an existing
+dev database.
 
 ## What it changes from V51
 

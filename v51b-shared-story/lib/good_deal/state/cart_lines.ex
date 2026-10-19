@@ -9,7 +9,9 @@ defmodule GoodDeal.State.CartLines do
     * `:contents`  `%{lines: [%{quantity, product: %{amount}}], wrapped_count}`, after any change
     * `:removed` / `:saved`  the line that left, and why
     * `:line`      a line handed out on request (to the wishlist, say)
-    * `:changed`   what to write to the store: `{:quantity, cart_id, item_id, qty}` or `{:removed, cart_id, item_id}`
+    * `:changed`   what to write to the store: `{:quantity, cart_id, item_id, qty}`, or a removed
+      line `{:aside, :held, cart_id, item_id}` until it is `{:kept, ...}` again or `{:removed, ...}` for
+      good, a saved one `{:aside, :saved, cart_id, item_id}` until it is `{:kept, ...}`
     * `:checkout_requested`  the cart's id and stored lines, `{cart_id, items}`, never the cart
   """
   alias GoodDeal.Lines
@@ -79,25 +81,11 @@ defmodule GoodDeal.State.CartLines do
     end
   end
 
-  def remove(%__MODULE__{} = cart, %{item_id: id}) do
-    case take_out(cart, id) do
-      {:ok, cart, row, item} ->
-        {cart, [rows: {:removed, row}, removed: item, contents: contents(cart)]}
+  def remove(%__MODULE__{} = cart, %{item_id: id}),
+    do: set_aside(cart, id, :held, &[removed: &1])
 
-      :error ->
-        {cart, []}
-    end
-  end
-
-  def save_for_later(%__MODULE__{} = cart, %{item_id: id}) do
-    case take_out(cart, id) do
-      {:ok, cart, row, item} ->
-        {cart, [rows: {:removed, row}, saved: item, contents: contents(cart)]}
-
-      :error ->
-        {cart, []}
-    end
-  end
+  def save_for_later(%__MODULE__{} = cart, %{item_id: id}),
+    do: set_aside(cart, id, :saved, &[saved: &1])
 
   @doc """
   A line comes (back) into the cart: an undone removal, a saved item, a wishlisted product. With a
@@ -120,7 +108,13 @@ defmodule GoodDeal.State.CartLines do
 
   def receive(%__MODULE__{} = cart, item) do
     cart = %{cart | items: Lines.add(cart.items, item)}
-    {cart, [rows: {:added, row(cart, item)}, contents: contents(cart)]}
+
+    {cart,
+     [
+       rows: {:added, row(cart, item)},
+       contents: contents(cart),
+       changed: {:kept, cart.cart_id, item.id}
+     ]}
   end
 
   @doc "A removal is final: write it."
@@ -155,14 +149,20 @@ defmodule GoodDeal.State.CartLines do
   def request_checkout(%__MODULE__{} = cart, _),
     do: {cart, [checkout_requested: {cart.cart_id, cart.items}]}
 
-  defp take_out(cart, id) do
+  # the line leaves the displayed cart but stays stored, marked, until it comes back or goes for good
+  defp set_aside(cart, id, mark, why) do
     case Lines.remove(cart.items, id) do
       {:ok, remaining, item} ->
         row = row(cart, item)
-        {:ok, %{cart | items: remaining, wrapped: MapSet.delete(cart.wrapped, id)}, row, item}
+        cart = %{cart | items: remaining, wrapped: MapSet.delete(cart.wrapped, id)}
+
+        {cart,
+         [rows: {:removed, row}] ++
+           why.(item) ++
+           [contents: contents(cart), changed: {:aside, mark, cart.cart_id, id}]}
 
       :error ->
-        :error
+        {cart, []}
     end
   end
 

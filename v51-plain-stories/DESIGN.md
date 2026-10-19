@@ -34,7 +34,7 @@ or will grow. For a smaller page, V50 is the same design without stories, and si
 | Features | `GoodDealWeb.Stories.*` | story modules: `EditCart`, `UndoRemoval`, `SaveForLater`, `KeepWishlist`, `CheckOut` (cart page); `EditOrder`, `BrowseCatalog`, `SubmitOrder` and `UndoRemoval` (portal) |
 | State | `GoodDeal.State.*` | stateful domain abstractions with declared ports: `CartLines`, `Promo`, `CartTotals`, `Undo`, `SavedItems`, `Wishlist`, `Checkout`, `OrderLines`, `PortalCatalog`, `PortalSubmit`, `RecordEdit`, `PageUI` |
 | Domain | `GoodDeal.Domain.*`, `GoodDeal.Actions.*`, `GoodDeal.Lines` | product-free rules and configured store-work instances: pricing functions, `StockStatus`, `AddLine`, `Charge`, `SettleOrder`, `PlaceOrder`; plain functions over a list of stored lines |
-| Programming paradigms and foundation | `GoodDealWeb.Paradigms.*`, `GoodDeal.Paradigms.*`, `GoodDeal.Components.*`, `GoodDeal.Foundation.*` | the runner (`Steps`), wiring checks, drawer, `on_mount` subscription hook, state-machine table, generic UI components, stores, PubSub wrapper, payment gateway |
+| Programming paradigms and foundation | `GoodDealWeb.Paradigms.*`, `GoodDeal.Paradigms.*`, `GoodDeal.Components.*`, `GoodDeal.Foundation.*` | the runner (`Steps`), wiring checks, drawer, `on_mount` subscription hook, step machine (`Transitions`), generic UI components, stores, PubSub wrapper, payment gateway |
 
 Both the Application and Features layers are composition layers: they instantiate, configure and
 wire, and hold no `if`, `case` on data, or arithmetic. In the linter's layer map, the Features layer is
@@ -162,9 +162,9 @@ def mount(_params, session, socket) do
    socket
    |> assign(texts: texts(), ui: PageUI.new(tabs: [:items, :saved, :wishlist]), summary: ..., ...)
    |> UndoRemoval.mount([timer: :undo, window_ms: Catalog.undo_window_ms()], out(:undo))
-   |> SaveForLater.mount([], out(:saved))
+   |> SaveForLater.mount([cart_id: cart_id], out(:saved))
    |> KeepWishlist.mount([], out(:wishlist))
-   |> EditCart.mount([cart_id: cart_id, pricing: pricing], out(:edit_cart))
+   |> EditCart.mount([cart_id: cart_id, pricing: pricing, hold_ms: Catalog.undo_window_ms()], out(:edit_cart))
    |> CheckOut.mount([task: :payment] ++ payment, out(:check_out))}
 end
 

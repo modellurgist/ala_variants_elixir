@@ -42,9 +42,13 @@ defmodule GoodDealWeb.Stories.EditLines do
       ]
     }
 
-  @doc "Config: `cart_id`, `stock_status` (a configured `StockStatus`), and `stream`, the page's name for its rows."
+  @doc """
+  Config: `cart_id`, `stock_status` (a configured `StockStatus`), `stream`, the page's name for its
+  rows, and `hold_ms`, how long a removed line stays undoable.
+  """
   def mount(s, opts, out) do
     cart_id = opts[:cart_id]
+    Carts.finalize_holds(cart_id, opts[:hold_ms])
 
     s
     |> assign(

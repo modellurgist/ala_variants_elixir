@@ -1,0 +1,171 @@
+<.header>Your Cart</.header>
+
+<.undo_banner pending={@pending_removal} />
+
+<div class="mt-6 grid gap-8 md:grid-cols-3">
+  <section class="md:col-span-2">
+    <nav class="flex gap-2 border-b" role="tablist">
+      <button
+        :for={
+          {tab, label, count} <- [
+            {"items", "Items", @summary.item_count},
+            {"saved", "Saved", @saved_count},
+            {"wishlist", "Wishlist", MapSet.size(@wishlisted)}
+          ]
+        }
+        id={"tab-#{tab}"}
+        type="button"
+        role="tab"
+        phx-click="switch_tab"
+        phx-value-tab={tab}
+        aria-selected={to_string(@tab == tab)}
+        class={["px-3 py-2 text-sm", @tab == tab && "border-b-2 border-zinc-900 font-semibold"]}
+      >
+        {label} ({count})
+      </button>
+    </nav>
+
+    <%!-- Panels stay in the DOM (hidden) so their streams keep their items. --%>
+    <div id="items-panel" class={@tab != "items" && "hidden"}>
+      <p :if={@summary.item_count == 0} class="py-6 text-zinc-500">Your cart is empty.</p>
+      <div id="cart-items" phx-update="stream">
+        <div
+          :for={{dom_id, item} <- @streams.items}
+          id={dom_id}
+          class="flex items-center gap-4 border-b py-3"
+        >
+          <img src={item.product.thumbnail} alt="" class="h-12 w-12 rounded object-cover" />
+          <div class="flex-1 text-sm">
+            <p class="font-semibold">
+              {item.product.name}
+              <span
+                :if={MapSet.member?(@wishlisted, item.product_id)}
+                class="text-xs text-pink-600"
+              >
+                ♥ Wishlisted
+              </span>
+            </p>
+            <p>{price(item.product.amount)} each <.stock_badge product={item.product} /></p>
+            <p :if={item.gift_wrap} class="text-xs text-zinc-600">Gift-wrapped</p>
+          </div>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              phx-click="update_quantity"
+              phx-value-item-id={item.id}
+              phx-value-delta="-1"
+              disabled={item.quantity <= 1}
+              aria-label="Decrease quantity"
+              class="rounded border px-2 disabled:opacity-40"
+            >
+              −
+            </button>
+            <span class="w-6 text-center">{item.quantity}</span>
+            <button
+              type="button"
+              phx-click="update_quantity"
+              phx-value-item-id={item.id}
+              phx-value-delta="1"
+              aria-label="Increase quantity"
+              class="rounded border px-2"
+            >
+              +
+            </button>
+          </div>
+          <p class="w-20 text-right text-sm">{price(Pricing.line_total(item))}</p>
+          <div class="flex flex-col items-start text-xs">
+            <button type="button" phx-click="toggle_gift_wrap" phx-value-item-id={item.id}>
+              {if item.gift_wrap, do: "Unwrap", else: "Wrap as gift"}
+            </button>
+            <button type="button" phx-click="toggle_wishlist" phx-value-item-id={item.id}>
+              {if MapSet.member?(@wishlisted, item.product_id),
+                do: "Unwishlist",
+                else: "Wishlist"}
+            </button>
+            <button type="button" phx-click="save_for_later" phx-value-item-id={item.id}>
+              Save for later
+            </button>
+            <button type="button" phx-click="remove_item" phx-value-item-id={item.id}>
+              Remove
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="saved-panel" class={@tab != "saved" && "hidden"}>
+      <p :if={@saved_count == 0} class="py-6 text-zinc-500">Nothing saved for later.</p>
+      <div id="saved-items" phx-update="stream">
+        <div
+          :for={{dom_id, item} <- @streams.saved}
+          id={dom_id}
+          class="flex items-center gap-4 border-b py-3 text-sm"
+        >
+          <span class="flex-1 font-semibold">{item.product.name}</span>
+          <span>{price(item.product.amount)} × {item.quantity}</span>
+          <.stock_badge product={item.product} />
+          <button type="button" phx-click="move_to_cart" phx-value-item-id={item.id}>
+            Move to cart
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="wishlist-panel" class={@tab != "wishlist" && "hidden"}>
+      <p :if={MapSet.size(@wishlisted) == 0} class="py-6 text-zinc-500">
+        Your wishlist is empty.
+      </p>
+      <div id="wishlist-items" phx-update="stream">
+        <div
+          :for={{dom_id, product} <- @streams.wishlist}
+          id={dom_id}
+          class="flex items-center gap-4 border-b py-3 text-sm"
+        >
+          <span class="flex-1 font-semibold">{product.name}</span>
+          <span>{price(product.amount)}</span>
+          <.stock_badge product={product} />
+          <button
+            type="button"
+            phx-click="add_wishlisted_to_cart"
+            phx-value-product-id={product.id}
+          >
+            Add to cart
+          </button>
+          <button type="button" phx-click="remove_from_wishlist" phx-value-product-id={product.id}>
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="space-y-6">
+    <.price_summary summary={@summary} />
+
+    <form id="promo-form" phx-submit="apply_promo" class="space-y-1">
+      <label for="promo-code" class="text-sm font-semibold">Promo code</label>
+      <div class="flex gap-2">
+        <input
+          id="promo-code"
+          type="text"
+          name="code"
+          value={@cart.promo_code}
+          class="w-full rounded border-zinc-300 text-sm"
+        />
+        <.button type="submit">Apply</.button>
+      </div>
+      <p :if={@promo_error} id="promo-error" class="text-sm text-rose-600">{@promo_error}</p>
+    </form>
+
+    <.shipping_picker methods={@shipping_methods} selected={@cart.shipping_method} />
+
+    <.button
+      id="checkout-button"
+      phx-click="checkout"
+      disabled={@summary.item_count == 0}
+      class="w-full"
+    >
+      Checkout
+    </.button>
+  </aside>
+</div>

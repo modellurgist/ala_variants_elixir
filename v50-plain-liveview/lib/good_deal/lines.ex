@@ -1,10 +1,11 @@
 defmodule GoodDeal.Lines do
   @moduledoc """
   A list of order lines: the stored records (`id`, `quantity`, `product`) a cart or a bulk order holds.
-  Find a line, add one, change a quantity, remove one, and set a product's new stock level. It holds no
-  prices, codes or flags of any use case, so the storefront's cart and the portal's order each build
-  their own data on it instead of sharing one struct (Spray §6.17.2).
+  Find a line, add one, change a quantity, remove one, set a product's new stock level, and project a
+  line for display. It holds no prices, codes or flags of any use case, so the storefront's cart and
+  the portal's order each build their own data on it instead of sharing one struct (Spray §6.17.2).
   """
+  alias GoodDeal.Domain.StockStatus
 
   def find(lines, id), do: Enum.find(lines, &(&1.id == id))
   def find_by_product(lines, product_id), do: Enum.find(lines, &(&1.product.id == product_id))
@@ -50,5 +51,21 @@ defmodule GoodDeal.Lines do
       nil -> :none
       line -> {:ok, lines, line}
     end
+  end
+
+  @doc "The neutral shape a displayed line carries, never the stored record; a use case adds its own fields."
+  def row(line, stock_rule) do
+    %{
+      id: line.id,
+      product_id: line.product.id,
+      product: %{
+        thumbnail: line.product.thumbnail,
+        name: line.product.name,
+        amount: line.product.amount
+      },
+      stock_status: StockStatus.call(stock_rule, line.product.stock),
+      quantity: line.quantity,
+      line_total: Money.new(line.product.amount * line.quantity)
+    }
   end
 end

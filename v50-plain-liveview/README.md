@@ -5,8 +5,31 @@ be reached at familiarity 5 with no relays between components. Blog post:
 [V50, plain LiveView](https://getdown.dev/blog/intro-to-v50-plain-liveview/).
 
 **Score:** full checklist by hand **100**. `ala_lint` 100/A at every tier (10 of 10 checked rules met
-under `--strict`). **123 tests, 0 failures**, every declared output routed under the suite. Familiarity 5 of 5 (judgement). No LiveComponents, so no
+under `--strict`). **146 tests, 0 failures**, every declared output routed under the suite. Familiarity 5 of 5 (judgement). No LiveComponents, so no
 relays between them; every update runs inside one `handle_event`, and only the payment is a task.
+
+*Since 2026-10-19:* the linter's clone check (duplicated logic, R7) found five duplicates. Three of
+them were two concepts written twice, now one abstraction each: `Checkout` and `PortalSubmit` share a
+step machine (`Transitions.fire/2`, `jump/2`, `move/2`, configured from the page's flow table and URL
+edges), and `Cart` and `OrderLines` share one row projection (`Lines.row/2`). Two are accepted in the
+code with `ala:accept clone`: the `set_stock` input's result-to-outputs shape, and two pages wiring
+their own flow's `step` and `form`. 100 at every tier again; `lint.exs` lists what remains, all
+unscored.
+
+*Defect fixes, 2026-10-19 (ported from V51B, each with a regression test that failed first):* undo on
+the portal now flashes "Item restored" (R4.2); the info and error flashes have distinct DOM ids
+(`flash-info`, `flash-error`); and a removal is written at once as a hold (`removed_at`, a new
+migration) that every read skips. So paying or submitting inside the undo window no longer deducts
+stock for or records the removed line, and a page closed inside the window no longer brings the line
+back (R4.3): the next mount, or the order, makes an elapsed hold final.
+
+*Save for later, 2026-10-19 (five regression tests, three on the page and two on the store, each
+failing first):* saving moved the line out of the cart only in memory, so paying (which charged the right
+amount) deducted stock for it and recorded it, and a reload put it back in the cart. A saved line is now written as such (`saved_at`, a
+second migration): `Carts.list_items` skips it, `Carts.list_saved` loads the Saved tab on mount, and
+"Move to cart" clears the mark (R3.8, R1.4, R5.5). A saved line stays with a paid cart, outside its
+order. Adding a product whose line is saved brings that line back into the cart.
+`Carts.apply_change/1` now has five kinds, accepted in the code with `ala:accept vocabulary`.
 
 ## The wiring as it ran (added 2026-10-16)
 

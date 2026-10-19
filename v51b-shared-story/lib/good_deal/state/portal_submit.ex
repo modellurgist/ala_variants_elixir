@@ -58,9 +58,11 @@ defmodule GoodDeal.State.PortalSubmit do
   def show_form(%__MODULE__{} = s, _), do: {s, [form: po_form(s)]}
 
   def review(%__MODULE__{} = s, %{empty?: true}), do: {s, [blocked: :empty]}
-  def review(%__MODULE__{} = s, _summary), do: advance(s, :go_review)
 
-  def edit_lines(%__MODULE__{} = s, _), do: advance(s, :edit_lines)
+  def review(%__MODULE__{} = s, _summary),
+    do: move(s, Transitions.next(s.flow, s.step, :go_review))
+
+  def edit_lines(%__MODULE__{} = s, _), do: move(s, Transitions.next(s.flow, s.step, :edit_lines))
 
   def validate(%__MODULE__{} = s, params), do: {s, [form: po_form(s, params)]}
 
@@ -73,18 +75,12 @@ defmodule GoodDeal.State.PortalSubmit do
 
   @doc "The order was placed: finish."
   def complete(%__MODULE__{} = s, order_id) do
-    {s, outs} = advance(%{s | order_id: order_id}, :submit_order)
+    {s, outs} = move(%{s | order_id: order_id}, Transitions.next(s.flow, s.step, :submit_order))
     {s, outs ++ [reference: order_id]}
   end
 
-  def goto(%__MODULE__{} = s, step) do
-    if {s.step, step} in s.url_edges, do: {%{s | step: step}, [step: step]}, else: {s, []}
-  end
+  def goto(%__MODULE__{} = s, step), do: move(s, Transitions.jump(s.url_edges, s.step, step))
 
-  defp advance(s, event) do
-    case Transitions.step(s.flow, s.step, event) do
-      {:moved, to} -> {%{s | step: to}, [step: to]}
-      {:stayed, _} -> {s, []}
-    end
-  end
+  defp move(%{step: step} = s, step), do: {s, []}
+  defp move(s, to), do: {%{s | step: to}, [step: to]}
 end
