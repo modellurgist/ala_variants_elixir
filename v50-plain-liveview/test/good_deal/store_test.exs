@@ -246,18 +246,3 @@ defmodule GoodDeal.Foundation.OrdersTest do
     refute Repo.get(CartItem, item_a.id)
   end
 end
-
-defmodule GoodDeal.Foundation.BroadcastTest do
-  use GoodDeal.DataCase
-
-  alias GoodDeal.Foundation.{Products, Broadcast}
-
-  import GoodDeal.StoreFixtures
-
-  test "subscribe and receive notifications" do
-    Broadcast.subscribe()
-    product = product_fixture()
-    Broadcast.notify(:product_created, product)
-    assert_received {:product_created, ^product}
-  end
-end

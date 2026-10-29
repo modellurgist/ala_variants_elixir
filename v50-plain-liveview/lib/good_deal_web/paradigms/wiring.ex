@@ -36,11 +36,16 @@ defmodule GoodDealWeb.Paradigms.Wiring do
   end
 
   def compare(wired, features) do
-    declared =
-      for {key, feature} <- features, port <- Keyword.keys(feature.ports().out), do: {key, port}
-
+    declared = declared(features)
     %{unwired: declared -- wired, unknown: Enum.uniq(wired) -- declared}
   end
+
+  @doc "Every `{key, port}` output the features declare. A configured part (a struct) declares its ports from its configuration."
+  def declared(features),
+    do: for({key, part} <- features, port <- Keyword.keys(ports(part).out), do: {key, port})
+
+  defp ports(%module{} = part), do: module.ports(part)
+  defp ports(module), do: module.ports()
 
   defmacro __using__(_opts) do
     quote do
@@ -59,7 +64,7 @@ defmodule GoodDealWeb.Paradigms.Wiring do
   defmacro __before_compile__(env) do
     wired = Module.get_attribute(env.module, :wired_ports)
     features = Module.get_attribute(env.module, :features) || %{}
-    Enum.each(features, fn {_, feature} -> Code.ensure_compiled!(feature) end)
+    for {_, feature} when is_atom(feature) <- features, do: Code.ensure_compiled!(feature)
 
     case compare(wired, features) do
       %{unwired: [], unknown: []} ->

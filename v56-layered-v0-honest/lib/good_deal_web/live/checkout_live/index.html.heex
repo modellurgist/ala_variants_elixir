@@ -1,0 +1,63 @@
+<.header>Checkout</.header>
+
+<ol id="checkout-steps" class="my-6 flex gap-6 text-sm">
+  <li
+    :for={{step, label} <- [address: "1. Address", payment: "2. Payment"]}
+    aria-current={@step == step && "step"}
+    class={[
+      "rounded-full px-3 py-1",
+      if(@step == step, do: "bg-zinc-900 text-white", else: "bg-zinc-100")
+    ]}
+  >
+    {label}
+  </li>
+</ol>
+
+<div class="grid gap-8 md:grid-cols-3">
+  <section class="md:col-span-2">
+    <.simple_form
+      :if={@step == :address}
+      for={@address_form}
+      id="address-form"
+      phx-change="validate_address"
+      phx-submit="save_address"
+    >
+      <.input field={@address_form[:name]} type="text" label="Full name" />
+      <.input field={@address_form[:line1]} type="text" label="Address" />
+      <.input field={@address_form[:city]} type="text" label="City" />
+      <.input field={@address_form[:postal_code]} type="text" label="Postal code" />
+      <:actions>
+        <.button>Continue to payment</.button>
+      </:actions>
+    </.simple_form>
+
+    <div :if={@step == :payment} id="payment-step" class="space-y-4">
+      <div id="address-summary" class="rounded border p-4 text-sm">
+        <p class="font-semibold">Shipping to</p>
+        <p>{@cart.address.name}</p>
+        <p>{@cart.address.line1}</p>
+        <p>{@cart.address.city} {@cart.address.postal_code}</p>
+      </div>
+
+      <p class="text-lg font-semibold">Total: {price(@summary.total)}</p>
+
+      <div :if={@processing} id="processing" class="flex items-center gap-2">
+        <.icon name="hero-arrow-path" class="h-5 w-5 animate-spin" /> Processing payment…
+      </div>
+
+      <div :if={@payment_error} id="payment-error" class="space-y-2 text-rose-600">
+        <p>{@payment_error}</p>
+        <.button phx-click="pay" disabled={@processing}>Try again</.button>
+      </div>
+
+      <div :if={!@payment_error} class="flex gap-4">
+        <.button phx-click="edit_address" disabled={@processing}>Edit address</.button>
+        <.button phx-click="pay" disabled={@processing}>Pay</.button>
+      </div>
+    </div>
+  </section>
+
+  <aside>
+    <.price_summary summary={@summary} />
+  </aside>
+</div>

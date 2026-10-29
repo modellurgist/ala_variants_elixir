@@ -31,7 +31,7 @@ defmodule GoodDeal.State.PortalCatalog do
     end
   end
 
-  def set_stock(%__MODULE__{} = catalog, %{product_id: product_id, stock: stock}) do
+  def set_stock(%__MODULE__{} = catalog, {product_id, stock}) do
     case Enum.find(catalog.products, &(&1.id == product_id)) do
       nil ->
         {catalog, []}

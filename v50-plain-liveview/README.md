@@ -5,7 +5,7 @@ be reached at familiarity 5 with no relays between components. Blog post:
 [V50, plain LiveView](https://getdown.dev/blog/intro-to-v50-plain-liveview/).
 
 **Score:** full checklist by hand **100**. `ala_lint` 100/A at every tier (10 of 10 checked rules met
-under `--strict`). **146 tests, 0 failures**, every declared output routed under the suite. Familiarity 5 of 5 (judgement). No LiveComponents, so no
+under `--strict`). **153 tests, 0 failures**, every declared output routed under the suite. Familiarity 5 of 5 (judgement). No LiveComponents, so no
 relays between them; every update runs inside one `handle_event`, and only the payment is a task.
 
 *Since 2026-10-19:* the linter's clone check (duplicated logic, R7) found five duplicates. Three of
@@ -30,6 +30,20 @@ second migration): `Carts.list_items` skips it, `Carts.list_saved` loads the Sav
 "Move to cart" clears the mark (R3.8, R1.4, R5.5). A saved line stays with a paid cart, outside its
 order. Adding a product whose line is saved brings that line back into the cart.
 `Carts.apply_change/1` now has five kinds, accepted in the code with `ala:accept vocabulary`.
+
+*Later (2026-10-21): a change feed.* Outside change (another session's purchase, a staff
+edit at /products) is now one programming-paradigm part, `GoodDealWeb.Paradigms.ChangeFeed`, instead of a
+`handle_info` clause per kind of change on each page. A page lists its feed as a part,
+`feed: ChangeFeed.new(Catalog.changes_topic(), [:stock])`, attaches it in `mount/3`, and wires its ports like
+any other output: `wire(s, :feed, {:stock, change})` runs `Cart.set_stock` on the cart, both
+`OrderLines` and `PortalCatalog` on the portal, and refreshes the row on /products. The publish side is
+another instance on the same topic: `SettleOrder`'s `announce` and the product pages' `saved` clauses.
+A fact is a kind and a product id with at most one value. `Foundation.Broadcast`, the `Subscribed`
+hook and `SaveProduct`'s own broadcasting are gone. The move closed a gap: a staff stock edit at
+/products was broadcast as `product_updated`, which the cart and portal ignored, so an open cart never
+showed it (R3.14, R6.8). The product pages' `saved` clause now also publishes the stock fact, and a
+test that failed without that line covers it. Eight tests added (four on `ChangeFeed` itself), one
+removed with `Broadcast`.
 
 ## The wiring as it ran (added 2026-10-16)
 

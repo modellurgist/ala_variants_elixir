@@ -5,7 +5,7 @@ user-story modules and meet every rule `ala_lint` checks at its strictest tier, 
 plain LiveView.
 
 **Score:** full checklist by hand **100**. `ala_lint` 100/A at every tier, and **10 of 10 checked rules
-met under `--super-strict`**, the first variant to do so. **158 tests, 0 failures**, every declared output routed under the suite. Familiarity 4 of 5
+met under `--super-strict`**, the first variant to do so. **168 tests, 0 failures**, every declared output routed under the suite. Familiarity 4 of 5
 (judgement). No LiveComponents, so no relays between them.
 
 *Since 2026-10-19:* the linter's clone check (duplicated logic, R7) found four duplicates across
@@ -31,6 +31,17 @@ it back in the cart. It is now marked in the store (a `saved_at` column, migrati
 `Carts.list_saved/1` reads them into the Saved tab when `SaveForLater` mounts, and moving one to the
 cart sends the existing `{:kept, ...}`, which now clears both marks. Adding a product whose line is
 saved brings that line back into the cart, one more. Seven regression tests failed first.
+
+*Later (2026-10-21):* changes made elsewhere reach a page through one paradigm part,
+`GoodDealWeb.Paradigms.ChangeFeed`, instead of `handle_info` clauses per kind of change. A page mounts a
+`%ChangeFeed{topic, format, facts}` as its `feed` and wires `feed.stock` like a story output
+(`wire(s, :feed, {:stock, change})` → `edit_cart.stock`); the composition that makes a change
+publishes through the same struct (the cart's `SettleOrder` announce, both product pages' save).
+`GoodDeal.Domain.ProductFacts` owns the facts: `{product_id, stock}` and the saved product, never a
+row. `Subscribed` and `Foundation.Broadcast` are gone, and `SaveProduct` no longer broadcasts. The
+move closed a gap: a staff stock edit at /products sent only `product_updated`, which carts and the
+portal ignored, so an open cart never saw it (R3.14, R6.8). The product pages now publish `:stock`
+too; a test for each failed first.
 
 ## The wiring as it ran (added 2026-10-16)
 

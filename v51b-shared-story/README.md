@@ -18,7 +18,7 @@ V50 and V51 as well; see `../v51-plain-stories/README.md` for it.
 
 **Score:** full checklist by hand **100**. `ala_lint` with `lint.exs`'s layer map: **100/A at every
 tier, 10 of 10 checked rules met under `--super-strict`** (since 2026-10-19, when the linter stopped
-reading `PriceOrder.mount/3`'s `assign` of a built value as a pass-through). **147 tests, 0 failures**, every declared
+reading `PriceOrder.mount/3`'s `assign` of a built value as a pass-through). **152 tests, 0 failures**, every declared
 output routed under the suite. Familiarity 4 of 5 (judgement), as V51.
 
 *Since 2026-10-19:* the linter's clone check (duplicated logic, R7) found the step machine written
@@ -32,6 +32,16 @@ payment bought it and a reload put it back in the cart. `CartLines` now marks it
 reads and settlement leave it out, `SaveForLater` loads the Saved tab from `Carts.list_saved/1`, and
 a line moved back is `{:kept, ...}` like an undone removal. Run `mix ecto.migrate` on an existing
 dev database.
+
+*Since 2026-10-21:* outside change is a part. `Paradigms.ChangeFeed` (programming-paradigms layer) is
+mounted by a page as `feed`, configured with a topic and the facts it wants, and wired like a story:
+`feed.stock → edit_lines.stock` on the cart, `→ edit_lines.stock, catalog.stock` on the portal,
+`feed.product`/`feed.stock` into the product list. A page that changes a product hands it to
+`ChangeFeed.publish/2`: the checkout's settlement (`SettleOrder`'s `announce`) and both product pages'
+saves. `Foundation.Broadcast`, `Paradigms.Subscribed` and the pages' `handle_info` clauses for
+catalogue messages are gone. The move closed a gap: a staff stock edit at /products never reached
+an open cart or portal, which ignored `:product_updated`; the product pages now publish `:stock`
+with `:product`.
 
 ## What it changes from V51
 

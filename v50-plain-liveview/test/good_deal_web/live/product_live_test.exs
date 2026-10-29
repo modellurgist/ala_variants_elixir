@@ -4,6 +4,9 @@ defmodule GoodDealWeb.ProductLiveTest do
   import Phoenix.LiveViewTest
   import GoodDeal.StoreFixtures
 
+  alias GoodDeal.Foundation.Products
+  alias GoodDealWeb.Paradigms.ChangeFeed
+
   @create_attrs %{
     name: "some name",
     description: "some description",
@@ -66,6 +69,39 @@ defmodule GoodDealWeb.ProductLiveTest do
       |> render_click()
 
       assert render(index_live) =~ "Added to cart"
+    end
+  end
+
+  describe "live from elsewhere" do
+    setup [:create_product]
+
+    test "a product saved in another session appears in an open list", %{
+      conn: conn,
+      product: product
+    } do
+      {:ok, list, _html} = live(conn, ~p"/products")
+
+      {:ok, staff, _html} = live(build_conn(), ~p"/products/#{product}/show/edit")
+      staff |> form("#product-form", product: %{name: "renamed elsewhere"}) |> render_submit()
+
+      {:ok, other, _html} = live(build_conn(), ~p"/products/new")
+
+      other
+      |> form("#product-form", product: %{@create_attrs | name: "made elsewhere"})
+      |> render_submit()
+
+      html = render(list)
+      assert html =~ "renamed elsewhere"
+      assert html =~ "made elsewhere"
+    end
+
+    test "a stock change reaches an open list", %{conn: conn, product: product} do
+      {:ok, list, _html} = live(conn, ~p"/products")
+      {:ok, _} = Products.update(product, %{stock: 0})
+
+      ChangeFeed.publish(ChangeFeed.new(GoodDeal.Catalog.changes_topic()), :stock, product.id, 0)
+
+      assert render(list) =~ "Out of stock"
     end
   end
 

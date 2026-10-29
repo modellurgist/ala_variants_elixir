@@ -4,6 +4,7 @@
 flowchart LR
   outside --> cart
   outside --> checkout
+  outside --> feed
   outside --> saved
   outside --> ui
   outside --> undo
@@ -24,6 +25,7 @@ flowchart LR
   checkout -.->|"form"| page_checkout_form[page]
   checkout -.->|"ready_to_pay"| page_checkout_ready_to_pay[page]
   checkout -.->|"step"| page_checkout_step[page]
+  feed -->|"stock"| cart
   saved -.->|"count"| page_saved_count[page]
   saved -->|"moved"| cart
   saved -.->|"rows"| page_saved_rows[page]

@@ -90,3 +90,29 @@ paradigm already threads. `lint.exs` holds the layer map so the score is reprodu
 - `PriceOrder.mount/3` assigns a built `OrderTotals` to the socket. Until 2026-10-19 the linter read
   that as a pass-through and left R7 unmet from `--strict`; it now reads an `assign` of a built
   value as building state, as it already read a struct update.
+
+## Outside change as a part (2026-10-21)
+
+Each page used to subscribe through an `on_mount` hook (`Subscribed`) to `Foundation.Broadcast`'s
+topic and route what came in by hand: a `handle_info` clause per message kind, building the stories'
+`%{product_id, stock}` change itself, and two clauses on each page to ignore catalogue edits. The
+fact format lived in three places and a new kind of change meant a clause on every page.
+
+- **`Paradigms.ChangeFeed`** is the paradigm, in the programming-paradigms layer. A page mounts it like a
+  story, `ChangeFeed.mount(socket, [topic:, facts:], out(:feed))`, lists it in `@parts` as `feed`, and
+  wires its outputs (`product`, `stock`) with `wire/3` clauses. It subscribes once connected and
+  attaches one `handle_info` hook that sends each fact the page asked for through the page's `out`,
+  so the trace records `feed → edit_lines` as it does any other hop.
+- **Publishing** is `ChangeFeed.publish(opts, product)`, configured the same way, which the page that
+  makes the change calls: the cart hands it to `SettleOrder` as `announce`; the product pages call
+  it on `saved`. `SaveProduct` only saves now.
+- **Facts** are built in one place, `ChangeFeed.facts/1`: the product itself, and `%{product_id, stock}`.
+  The topic is `Catalog.changes_topic/0`, so publisher and subscriber share it and the id.
+- The cart and portal ask only for `:stock` and ground `feed: :product` in `grounded/0`; that names
+  the kind twice (in the config and in `grounded`), and nothing checks that the two agree.
+
+Found by the move: a stock edit at /products reached the product list but no cart or portal, which
+ignored `:product_updated`. With the feed it was one word, `:stock` in the product pages' publish
+config; a test edits stock at /products/:id/show/edit and sees an open cart say "Out of stock".
+Still not live: a price, name or new product on an open cart or portal (no input takes them), and a
+deleted product anywhere (nothing publishes it).

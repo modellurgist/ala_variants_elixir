@@ -8,7 +8,6 @@ defmodule GoodDealWeb.CartLive.Show do
   wired inside it. A test checks every declared port and event has a clause.
   """
   use GoodDealWeb, :live_view
-  on_mount {GoodDealWeb.Paradigms.Subscribed, {GoodDeal.Foundation.Broadcast, :subscribe}}
   import GoodDeal.Components.{Panes, Parts}
 
   alias GoodDeal.Catalog
@@ -19,14 +18,15 @@ defmodule GoodDealWeb.CartLive.Show do
     CalculateShipping,
     Charge,
     SettleOrder,
+    ProductFacts,
     StockStatus,
     ValidatePromo
   }
 
   alias GoodDeal.State.PageUI
-  alias GoodDeal.Foundation.{Broadcast, Carts, LedgerGateway, Orders, Products}
+  alias GoodDeal.Foundation.{Carts, LedgerGateway, Orders, Products}
   alias GoodDealWeb.{CartSession, CheckoutMetadata}
-  alias GoodDealWeb.Paradigms.Steps
+  alias GoodDealWeb.Paradigms.{ChangeFeed, Steps}
   alias GoodDealWeb.Stories.{CheckOut, EditCart, KeepWishlist, SaveForLater, UndoRemoval}
 
   @steps_by_url %{"payment" => :payment}
@@ -89,13 +89,18 @@ defmodule GoodDealWeb.CartLive.Show do
     saved: SaveForLater,
     wishlist: KeepWishlist,
     check_out: CheckOut,
-    ui: PageUI
+    ui: PageUI,
+    feed: ProductFacts
   }
   def parts, do: @parts
+
+  @doc "Product facts this page doesn't show."
+  def grounded, do: [feed: :product]
 
   @impl true
   def mount(_params, session, socket) do
     cart_id = CartSession.fetch(session)
+    feed = %ChangeFeed{topic: Catalog.product_topic(), format: ProductFacts, facts: [:stock]}
 
     pricing = %{
       shipping: CalculateShipping.new(Catalog.rates()),
@@ -114,7 +119,7 @@ defmodule GoodDealWeb.CartLive.Show do
         orders: Orders,
         carts: Carts,
         products: Products,
-        announce: &Broadcast.stock_changed/2,
+        announce: &ChangeFeed.publish(feed, &1),
         cart_id: cart_id
       }
     ]
@@ -141,7 +146,8 @@ defmodule GoodDealWeb.CartLive.Show do
        [cart_id: cart_id, pricing: pricing, hold_ms: Catalog.undo_window_ms()],
        out(:edit_cart)
      )
-     |> CheckOut.mount([task: :payment] ++ payment, out(:check_out))}
+     |> CheckOut.mount([task: :payment] ++ payment, out(:check_out))
+     |> ChangeFeed.mount(feed, out(:feed))}
   end
 
   # the URL names a checkout step (browser back, a reload); the story decides whether to honour it
@@ -190,13 +196,6 @@ defmodule GoodDealWeb.CartLive.Show do
 
   @impl true
   def handle_info({:timer, :undo, item}, socket), do: {:noreply, to(socket, :undo, :expire, item)}
-
-  def handle_info({:stock_changed, {product_id, stock}}, socket),
-    do: {:noreply, to(socket, :edit_cart, :stock, %{product_id: product_id, stock: stock})}
-
-  # the topic also carries catalogue edits, which this page doesn't show
-  def handle_info({:product_created, _product}, socket), do: {:noreply, socket}
-  def handle_info({:product_updated, _product}, socket), do: {:noreply, socket}
 
   defp to(socket, key, port, payload),
     do: Steps.to(socket, __MODULE__, @parts, key, port, payload, out(key))
@@ -248,6 +247,7 @@ defmodule GoodDealWeb.CartLive.Show do
 
   defp wire(s, :check_out, {:address, address}), do: assign(s, :address, address)
   defp wire(s, :check_out, {:pay_requested, _}), do: to(s, :edit_cart, :request_checkout, nil)
+  defp wire(s, :feed, {:stock, change}), do: to(s, :edit_cart, :stock, change)
 
   @impl true
   def render(%{live_action: :checkout} = assigns) do

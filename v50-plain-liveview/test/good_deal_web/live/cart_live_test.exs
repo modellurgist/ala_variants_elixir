@@ -8,7 +8,9 @@ defmodule GoodDealWeb.CartLiveTest do
   import Ecto.Query
 
   alias GoodDeal.{Catalog, Repo}
-  alias GoodDeal.Foundation.{Carts, Products}
+  alias GoodDeal.Domain.SettleOrder
+  alias GoodDeal.Foundation.{Carts, Orders, Products}
+  alias GoodDealWeb.Paradigms.ChangeFeed
   alias GoodDeal.Foundation.Schemas.CartItem
 
   setup :verify_on_exit!
@@ -250,10 +252,41 @@ defmodule GoodDealWeb.CartLiveTest do
       assert html =~ "Some items are out of stock"
     end
 
-    test "a stock_changed fact marks the item out of stock", %{conn: conn} do
+    test "a published stock fact marks the item out of stock", %{conn: conn} do
       %{lv: lv, product_a: a} = open_cart(conn)
 
-      send(lv.pid, {:stock_changed, {a.id, 0}})
+      ChangeFeed.publish(ChangeFeed.new(Catalog.changes_topic()), :stock, a.id, 0)
+
+      assert render(lv) =~ "Out of stock"
+    end
+
+    test "a staff stock edit at /products reaches an open cart", %{conn: conn} do
+      %{lv: lv, product_a: a} = open_cart(conn)
+      refute render(lv) =~ "Out of stock"
+
+      {:ok, staff, _html} = live(build_conn(), ~p"/products/#{a}/show/edit")
+      staff |> form("#product-form", product: %{stock: 0}) |> render_submit()
+
+      assert render(lv) =~ "Out of stock"
+    end
+
+    test "a purchase in another session reaches an open cart", %{conn: conn} do
+      %{lv: lv, product_b: b} = open_cart(conn)
+      other = cart_fixture()
+      {:ok, item} = Carts.add_item(other.id, b)
+      {:ok, _} = Carts.update_quantity(other.id, item.id, 5)
+      refute render(lv) =~ "Out of stock"
+
+      SettleOrder.run(
+        %SettleOrder{
+          orders: Orders,
+          carts: Carts,
+          products: Products,
+          announce: &ChangeFeed.publish(ChangeFeed.new(Catalog.changes_topic()), :stock, &1, &2),
+          cart_id: other.id
+        },
+        "ref"
+      )
 
       assert render(lv) =~ "Out of stock"
     end

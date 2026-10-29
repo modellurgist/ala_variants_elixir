@@ -1,0 +1,115 @@
+<.header>
+  B2B portal
+  <:subtitle>Order in bulk with volume pricing.</:subtitle>
+</.header>
+
+<ol id="portal-steps" class="my-6 flex gap-6 text-sm">
+  <li
+    :for={{step, label} <- [order: "1. Order", review: "2. Review", submitted: "3. Submitted"]}
+    aria-current={@step == step && "step"}
+    class={[
+      "rounded-full px-3 py-1",
+      if(@step == step, do: "bg-zinc-900 text-white", else: "bg-zinc-100")
+    ]}
+  >
+    {label}
+  </li>
+</ol>
+
+<.undo_banner pending={@pending_removal} />
+
+<%!-- Kept in the DOM (hidden) on other steps so the streams keep their items. --%>
+<div id="order-step" class={["grid gap-8 md:grid-cols-3", @step != :order && "hidden"]}>
+  <section class="space-y-8 md:col-span-2">
+    <div>
+      <h2 class="mb-2 font-semibold">Products</h2>
+      <div id="portal-products" phx-update="stream">
+        <div
+          :for={{dom_id, product} <- @streams.products}
+          id={dom_id}
+          class="flex items-center gap-4 border-b py-2 text-sm"
+        >
+          <span class="flex-1 font-semibold">{product.name}</span>
+          <span>{price(product.amount)}</span>
+          <.stock_badge product={product} />
+          <form phx-submit="add_to_order" class="flex items-center gap-2">
+            <input type="hidden" name="product_id" value={product.id} />
+            <input
+              type="number"
+              name="quantity"
+              value="1"
+              min="1"
+              aria-label={"Quantity of #{product.name}"}
+              class="w-20 rounded border-zinc-300 text-sm"
+            />
+            <.button disabled={
+              StockStatus.of(product.stock, Calibration.low_stock_threshold()) == :out_of_stock
+            }>
+              Add to order
+            </.button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="mb-2 font-semibold">Order lines</h2>
+      <p :if={@summary.item_count == 0} class="text-sm text-zinc-500">No lines yet.</p>
+      <div id="order-lines" phx-update="stream">
+        <div
+          :for={{dom_id, item} <- @streams.lines}
+          id={dom_id}
+          class="flex items-center gap-4 border-b py-2 text-sm"
+        >
+          <span class="flex-1 font-semibold">{item.product.name}</span>
+          <.stock_badge product={item.product} />
+          <form phx-change="update_line">
+            <input type="hidden" name="item_id" value={item.id} />
+            <input
+              type="number"
+              name="quantity"
+              value={item.quantity}
+              min="1"
+              aria-label={"Quantity of #{item.product.name}"}
+              class="w-20 rounded border-zinc-300 text-sm"
+            />
+          </form>
+          <span class="w-24 text-right">{price(Pricing.line_total(item))}</span>
+          <button type="button" phx-click="remove_line" phx-value-item-id={item.id}>
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="space-y-6">
+    <.price_summary summary={@summary} />
+    <.shipping_picker methods={@shipping_methods} selected={@cart.shipping_method} />
+    <.button id="review-button" phx-click="review" class="w-full">
+      Review order · {price(@summary.total)}
+    </.button>
+  </aside>
+</div>
+
+<div :if={@step == :review} id="review-step" class="grid gap-8 md:grid-cols-3">
+  <section class="md:col-span-2">
+    <.simple_form for={@po_form} id="po-form" phx-change="validate_po" phx-submit="submit_order">
+      <.input field={@po_form[:number]} type="text" label="Purchase order number" />
+      <:actions>
+        <.button type="button" phx-click="edit_lines">Edit lines</.button>
+        <.button>Submit order</.button>
+      </:actions>
+    </.simple_form>
+  </section>
+  <aside>
+    <.price_summary id="review-summary" summary={@summary} />
+  </aside>
+</div>
+
+<div :if={@step == :submitted} id="submitted-step" class="space-y-4">
+  <p class="text-lg font-semibold">Order {order_reference(@order)} submitted</p>
+  <p>Purchase order: {@order.po_number}</p>
+  <p>Total: {price(@order.total)}</p>
+  <.link href={~p"/portal"} class="font-semibold underline">Start a new order</.link>
+</div>

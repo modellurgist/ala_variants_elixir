@@ -6,6 +6,7 @@ defmodule GoodDealWeb.Paradigms.Trace do
   is a no-op, so the pages pay nothing in production. `mermaid/1` draws a page from its hops and
   `unrouted/1` lists the declared outputs no hop ever left from.
   """
+  alias GoodDealWeb.Paradigms.Wiring
   @table :ala_trace
 
   def enable do
@@ -27,10 +28,7 @@ defmodule GoodDealWeb.Paradigms.Trace do
   def unrouted(page) do
     routed = page |> edges() |> Enum.map(&elem(&1, 0)) |> MapSet.new()
 
-    for {key, part} <- page.features(),
-        port <- Keyword.keys(part.ports().out),
-        not MapSet.member?(routed, {key, port}),
-        do: {key, port}
+    page.features() |> Wiring.declared() |> Enum.reject(&MapSet.member?(routed, &1))
   end
 
   @doc "A Mermaid flowchart of the page as it ran: solid edges between parts, dotted ones that landed on the page."

@@ -1,24 +1,23 @@
 defmodule GoodDealWeb.ProductLive.Index do
   use GoodDealWeb, :live_view
-  on_mount {GoodDealWeb.Paradigms.Subscribed, {GoodDeal.Foundation.Broadcast, :subscribe}}
   import GoodDeal.Components.Panes, only: [only_on: 1, stream_list: 1]
   import GoodDeal.Domain.StockIndicator
 
   import GoodDeal.Components.RecordForm
 
   alias GoodDeal.Actions.SaveProduct
-  alias GoodDeal.Domain.{AddLine, StockStatus}
+  alias GoodDeal.Domain.{AddLine, ProductFacts, StockStatus}
   alias GoodDeal.Foundation.{Products, Carts}
   alias GoodDeal.Foundation.Schemas.Product
   alias GoodDeal.State.RecordEdit
   alias GoodDealWeb.CartSession
-  alias GoodDealWeb.Paradigms.Steps
+  alias GoodDealWeb.Paradigms.{ChangeFeed, Steps}
 
   @flash_ms 2500
   @saved %{new: "Product created successfully", edit: "Product updated successfully"}
 
   @doc "Which state each `wire/3` key names, so a test can check every declared port has a clause."
-  @parts %{product_form: RecordEdit}
+  @parts %{product_form: RecordEdit, feed: ProductFacts}
   def parts, do: @parts
 
   @stock_labels %{
@@ -29,9 +28,16 @@ defmodule GoodDealWeb.ProductLive.Index do
 
   @impl true
   def mount(_params, session, socket) do
+    feed = %ChangeFeed{
+      topic: GoodDeal.Catalog.product_topic(),
+      format: ProductFacts,
+      facts: [:product, :stock]
+    }
+
     socket =
       socket
       |> assign(
+        feed: feed,
         cart_id: CartSession.fetch(session),
         stock_rule: StockStatus.new(low_at: GoodDeal.Catalog.low_stock_threshold()),
         stock_labels: @stock_labels,
@@ -41,6 +47,7 @@ defmodule GoodDealWeb.ProductLive.Index do
         form: nil
       )
       |> stream(:products, Products.list())
+      |> ChangeFeed.mount(feed, &wire(&1, :feed, &2))
 
     {:ok, socket}
   end
@@ -67,19 +74,6 @@ defmodule GoodDealWeb.ProductLive.Index do
   end
 
   @impl true
-  def handle_info({:product_updated, updated_product}, socket) do
-    {:noreply, stream_insert(socket, :products, updated_product)}
-  end
-
-  @impl true
-  def handle_info({:product_created, created_product}, socket) do
-    {:noreply, stream_insert(socket, :products, created_product)}
-  end
-
-  @impl true
-  def handle_info({:stock_changed, {product_id, _stock}}, socket),
-    do: {:noreply, stream_insert(socket, :products, Products.get!(product_id))}
-
   def handle_info(:clear_flash, socket) do
     {:noreply, clear_flash(socket)}
   end
@@ -109,10 +103,17 @@ defmodule GoodDealWeb.ProductLive.Index do
   defp wire(s, :product_form, {:submit, request}),
     do: Steps.feed(s, :product_form, &RecordEdit.saved/2, &SaveProduct.save/1, request, &wire/3)
 
-  defp wire(s, :product_form, {:saved, {action, product}}),
-    do:
-      s
-      |> stream_insert(:products, product)
-      |> put_flash(:info, @saved[action])
-      |> push_patch(to: ~p"/products")
+  defp wire(s, :product_form, {:saved, {action, product}}) do
+    ChangeFeed.publish(s.assigns.feed, product)
+
+    s
+    |> stream_insert(:products, product)
+    |> put_flash(:info, @saved[action])
+    |> push_patch(to: ~p"/products")
+  end
+
+  defp wire(s, :feed, {:product, product}), do: stream_insert(s, :products, product)
+
+  defp wire(s, :feed, {:stock, change}),
+    do: stream_insert(s, :products, Products.get!(change.product_id))
 end

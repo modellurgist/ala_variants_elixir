@@ -5,7 +5,6 @@ defmodule GoodDealWeb.PortalLive.Show do
   Its draft is a separate session cart.
   """
   use GoodDealWeb, :live_view
-  on_mount {GoodDealWeb.Paradigms.Subscribed, {GoodDeal.Foundation.Broadcast, :subscribe}}
   import GoodDeal.Components.{Panes, Parts, Rows}
 
   alias GoodDeal.Catalog
@@ -13,7 +12,7 @@ defmodule GoodDealWeb.PortalLive.Show do
   alias GoodDeal.State.{OrderLines, PortalCatalog, PortalSubmit, Undo}
   alias GoodDeal.Foundation.{Carts, Orders, Products}
   alias GoodDealWeb.CartSession
-  alias GoodDealWeb.Paradigms.Steps
+  alias GoodDealWeb.Paradigms.{ChangeFeed, Steps}
 
   @flow [
     {:lines, :go_review, :review},
@@ -60,7 +59,13 @@ defmodule GoodDealWeb.PortalLive.Show do
   end
 
   @doc "Which feature each `wire/3` key names, so a test can check every declared port has a clause."
-  @features %{order: OrderLines, undo: Undo, catalog: PortalCatalog, flow: PortalSubmit}
+  @features %{
+    order: OrderLines,
+    undo: Undo,
+    catalog: PortalCatalog,
+    flow: PortalSubmit,
+    feed: ChangeFeed.new(Catalog.changes_topic(), [:stock])
+  }
   def features, do: @features
 
   @impl true
@@ -101,6 +106,7 @@ defmodule GoodDealWeb.PortalLive.Show do
      )
      |> stream(:order_lines, [])
      |> stream(:portal_products, [])
+     |> ChangeFeed.attach(:feed, @features.feed, &run/3)
      |> Steps.feed(:order, &OrderLines.load/2, &Carts.list_items/1, cart_id, &wire/3)
      |> Steps.feed(:catalog, &PortalCatalog.load/2, &Products.list/0, nil, &wire/3)
      |> run(:flow, &PortalSubmit.show_form(&1, nil))}
@@ -144,19 +150,6 @@ defmodule GoodDealWeb.PortalLive.Show do
   @impl true
   def handle_info({:timer, :undo, %{id: id}}, socket),
     do: {:noreply, run(socket, :undo, &Undo.expire(&1, id))}
-
-  def handle_info({:stock_changed, {product_id, stock}}, socket) do
-    change = %{product_id: product_id, stock: stock}
-
-    {:noreply,
-     socket
-     |> run(:order, &OrderLines.set_stock(&1, change))
-     |> run(:catalog, &PortalCatalog.set_stock(&1, change))}
-  end
-
-  # the topic also carries catalogue edits, which this page doesn't show
-  def handle_info({:product_created, _product}, socket), do: {:noreply, socket}
-  def handle_info({:product_updated, _product}, socket), do: {:noreply, socket}
 
   defp run(socket, key, step), do: Steps.run(socket, key, step, &wire/3)
   defp int(s) when is_binary(s), do: String.to_integer(s)
@@ -202,6 +195,12 @@ defmodule GoodDealWeb.PortalLive.Show do
         &wire/3
       )
       |> put_flash(:info, "Added to order")
+
+  defp wire(s, :feed, {:stock, change}),
+    do:
+      s
+      |> run(:order, &OrderLines.set_stock(&1, change))
+      |> run(:catalog, &PortalCatalog.set_stock(&1, change))
 
   defp wire(s, :flow, {:step, step}),
     do: s |> assign(:step, step) |> Steps.patch(@step_paths, step)

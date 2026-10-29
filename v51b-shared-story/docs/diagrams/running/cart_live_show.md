@@ -5,7 +5,6 @@ flowchart LR
   outside -->|"failed"| check_out
   outside -->|"goto"| check_out
   outside -->|"succeeded"| check_out
-  outside -->|"stock"| edit_lines
   outside -->|"expire"| undo
   check_out -.->|"address"| page_check_out_address[page]
   check_out -.->|"form"| page_check_out_form[page]
@@ -16,6 +15,7 @@ flowchart LR
   edit_lines -->|"line → toggle"| wishlist
   edit_lines -->|"removed → capture"| undo
   edit_lines -->|"saved → stash"| saved
+  feed -->|"stock → stock"| edit_lines
   price -->|"checkout_started → start"| check_out
   price -.->|"promo_error"| page_price_promo_error[page]
   price -.->|"summary"| page_price_summary[page]

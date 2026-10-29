@@ -101,5 +101,23 @@ defmodule GoodDealWeb.ProductLiveTest do
       assert html =~ "Product updated successfully"
       assert html =~ "some updated name"
     end
+
+    test "a save here reaches every open product list", %{conn: conn, product: product} do
+      {:ok, index_live, _html} = live(conn, ~p"/products")
+      {:ok, show_live, _html} = live(conn, ~p"/products/#{product}/show/edit")
+
+      show_live |> form("#product-form", product: @update_attrs) |> render_submit()
+
+      assert index_live |> element("#products-#{product.id}") |> render() =~ "some updated name"
+    end
+
+    test "a product created in one list appears in another open list", %{conn: conn} do
+      {:ok, other_live, _html} = live(conn, ~p"/products")
+      {:ok, index_live, _html} = live(conn, ~p"/products/new")
+
+      index_live |> form("#product-form", product: @create_attrs) |> render_submit()
+
+      assert render(other_live) =~ "some name"
+    end
   end
 end

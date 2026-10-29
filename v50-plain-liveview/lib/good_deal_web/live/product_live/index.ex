@@ -1,6 +1,5 @@
 defmodule GoodDealWeb.ProductLive.Index do
   use GoodDealWeb, :live_view
-  on_mount {GoodDealWeb.Paradigms.Subscribed, {GoodDeal.Foundation.Broadcast, :subscribe}}
   import GoodDeal.Components.Panes, only: [only_on: 1, stream_list: 1]
   import GoodDeal.Domain.StockIndicator
 
@@ -12,13 +11,17 @@ defmodule GoodDealWeb.ProductLive.Index do
   alias GoodDeal.Foundation.Schemas.Product
   alias GoodDeal.State.RecordEdit
   alias GoodDealWeb.CartSession
-  alias GoodDealWeb.Paradigms.Steps
+  alias GoodDealWeb.Paradigms.{ChangeFeed, Steps}
 
   @flash_ms 2500
+  @changes ChangeFeed.new(GoodDeal.Catalog.changes_topic())
   @saved %{new: "Product created successfully", edit: "Product updated successfully"}
 
   @doc "Which state each `wire/3` key names, so a test can check every declared port has a clause."
-  @features %{product_form: RecordEdit}
+  @features %{
+    product_form: RecordEdit,
+    feed: ChangeFeed.new(GoodDeal.Catalog.changes_topic(), [:product, :stock])
+  }
   def features, do: @features
 
   @stock_labels %{
@@ -41,6 +44,7 @@ defmodule GoodDealWeb.ProductLive.Index do
         form: nil
       )
       |> stream(:products, Products.list())
+      |> ChangeFeed.attach(:feed, @features.feed, &run/3)
 
     {:ok, socket}
   end
@@ -59,7 +63,7 @@ defmodule GoodDealWeb.ProductLive.Index do
   defp apply_action(socket, :new, _params) do
     socket
     |> assign(:page_title, "New Product")
-    |> Steps.run(:product_form, &RecordEdit.create(&1, %Product{}), &wire/3)
+    |> run(:product_form, &RecordEdit.create(&1, %Product{}))
   end
 
   defp apply_action(socket, :index, _params) do
@@ -67,19 +71,6 @@ defmodule GoodDealWeb.ProductLive.Index do
   end
 
   @impl true
-  def handle_info({:product_updated, updated_product}, socket) do
-    {:noreply, stream_insert(socket, :products, updated_product)}
-  end
-
-  @impl true
-  def handle_info({:product_created, created_product}, socket) do
-    {:noreply, stream_insert(socket, :products, created_product)}
-  end
-
-  @impl true
-  def handle_info({:stock_changed, {product_id, _stock}}, socket),
-    do: {:noreply, stream_insert(socket, :products, Products.get!(product_id))}
-
   def handle_info(:clear_flash, socket) do
     {:noreply, clear_flash(socket)}
   end
@@ -91,10 +82,10 @@ defmodule GoodDealWeb.ProductLive.Index do
   end
 
   def handle_event("validate_product", %{"product" => params}, socket),
-    do: {:noreply, Steps.run(socket, :product_form, &RecordEdit.validate(&1, params), &wire/3)}
+    do: {:noreply, run(socket, :product_form, &RecordEdit.validate(&1, params))}
 
   def handle_event("save_product", %{"product" => params}, socket),
-    do: {:noreply, Steps.run(socket, :product_form, &RecordEdit.submit(&1, params), &wire/3)}
+    do: {:noreply, run(socket, :product_form, &RecordEdit.submit(&1, params))}
 
   @impl true
   def handle_event("add_to_cart", %{"id" => id}, socket) do
@@ -103,16 +94,24 @@ defmodule GoodDealWeb.ProductLive.Index do
     {:noreply, put_flash(socket, :info, "Added to cart")}
   end
 
+  defp run(socket, key, step), do: Steps.run(socket, key, step, &wire/3)
+
   # {state, port} → where it wires on this page
   defp wire(s, :product_form, {:form, changeset}), do: assign(s, :form, to_form(changeset))
 
   defp wire(s, :product_form, {:submit, request}),
     do: Steps.feed(s, :product_form, &RecordEdit.saved/2, &SaveProduct.save/1, request, &wire/3)
 
-  defp wire(s, :product_form, {:saved, {action, product}}),
-    do:
-      s
-      |> stream_insert(:products, product)
-      |> put_flash(:info, @saved[action])
-      |> push_patch(to: ~p"/products")
+  defp wire(s, :product_form, {:saved, {action, product}}) do
+    ChangeFeed.publish(@changes, :product, product.id)
+    ChangeFeed.publish(@changes, :stock, product.id, product.stock)
+
+    s
+    |> stream_insert(:products, product)
+    |> put_flash(:info, @saved[action])
+    |> push_patch(to: ~p"/products")
+  end
+
+  defp wire(s, :feed, {:product, id}), do: stream_insert(s, :products, Products.get!(id))
+  defp wire(s, :feed, {:stock, {id, _stock}}), do: stream_insert(s, :products, Products.get!(id))
 end

@@ -7,6 +7,8 @@ defmodule GoodDealWeb.PortalLiveTest do
   import Ecto.Query
 
   alias GoodDeal.{Catalog, Repo}
+  alias GoodDeal.Domain.ProductFacts
+  alias GoodDealWeb.Paradigms.ChangeFeed
   alias GoodDeal.Foundation.Carts
   alias GoodDeal.Foundation.Schemas.CartItem
 
@@ -83,15 +85,37 @@ defmodule GoodDealWeb.PortalLiveTest do
     assert html =~ "Products"
   end
 
-  test "a StockChanged fact updates both the catalog row and an order line", %{conn: conn} do
+  test "a stock fact updates both the catalog row and an order line", %{conn: conn} do
     %{lv: lv, product_b: b} = open_portal(conn)
 
     lv
     |> element(~s(#portal_products-#{b.id} form))
     |> render_submit(%{"product-id" => b.id, "quantity" => "1"})
 
-    send(lv.pid, {:stock_changed, {b.id, 0}})
-    assert render(lv) =~ "Out of stock"
+    ChangeFeed.publish(
+      %ChangeFeed{topic: Catalog.product_topic(), format: ProductFacts, facts: [:stock]},
+      %{b | stock: 0}
+    )
+
+    assert lv |> element("#portal_products-#{b.id}") |> render() =~ "Out of stock"
+    assert lv |> element("#order_lines") |> render() =~ "Out of stock"
+  end
+
+  test "a staff stock edit at /products reaches an open portal", %{conn: conn} do
+    %{lv: lv, conn: conn, product_b: b} = open_portal(conn)
+
+    lv
+    |> element(~s(#portal_products-#{b.id} form))
+    |> render_submit(%{"product-id" => b.id, "quantity" => "1"})
+
+    {:ok, products, _html} = live(conn, ~p"/products/#{b}/show/edit")
+
+    products
+    |> form("#product-form", product: %{stock: 0})
+    |> render_submit()
+
+    assert lv |> element("#portal_products-#{b.id}") |> render() =~ "Out of stock"
+    assert lv |> element("#order_lines") |> render() =~ "Out of stock"
   end
 
   test "removing a line arms the reused undo banner; undo restores it", %{conn: conn} do

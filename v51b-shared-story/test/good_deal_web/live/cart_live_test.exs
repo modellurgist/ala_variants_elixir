@@ -245,10 +245,22 @@ defmodule GoodDealWeb.CartLiveTest do
   end
 
   describe "real-time stock" do
-    test "a stock_changed fact marks the item out of stock", %{conn: conn} do
+    test "a stock fact marks the item out of stock", %{conn: conn} do
       %{lv: lv, product_a: a} = open_cart(conn)
 
-      send(lv.pid, {:stock_changed, {a.id, 0}})
+      GoodDealWeb.Paradigms.ChangeFeed.publish(
+        [topic: GoodDeal.Catalog.changes_topic(), facts: [:stock]],
+        %{a | stock: 0}
+      )
+
+      assert render(lv) =~ "Out of stock"
+    end
+
+    test "a staff stock edit at /products reaches an open cart", %{conn: conn} do
+      %{lv: lv, product_a: a} = open_cart(conn)
+      {:ok, products, _} = live(conn, ~p"/products/#{a}/show/edit")
+
+      products |> form("#product-form", product: %{stock: 0}) |> render_submit()
 
       assert render(lv) =~ "Out of stock"
     end

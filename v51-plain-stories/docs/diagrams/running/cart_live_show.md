@@ -5,7 +5,6 @@ flowchart LR
   outside -->|"failed"| check_out
   outside -->|"goto"| check_out
   outside -->|"succeeded"| check_out
-  outside -->|"stock"| edit_cart
   outside -->|"expire"| undo
   check_out -.->|"address"| page_check_out_address[page]
   check_out -.->|"form"| page_check_out_form[page]
@@ -18,6 +17,7 @@ flowchart LR
   edit_cart -->|"removed → capture"| undo
   edit_cart -->|"saved → stash"| saved
   edit_cart -.->|"summary"| page_edit_cart_summary[page]
+  feed -->|"stock → stock"| edit_cart
   saved -.->|"count"| page_saved_count[page]
   saved -->|"moved → receive"| edit_cart
   ui -.->|"tab"| page_ui_tab[page]

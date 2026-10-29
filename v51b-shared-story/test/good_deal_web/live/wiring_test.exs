@@ -13,7 +13,7 @@ defmodule GoodDealWeb.WiringTest do
 
   test "the portal wires every declared port, except the shared story's outputs it grounds" do
     assert Wiring.gaps(GoodDealWeb.PortalLive.Show) == %{unwired: [], unknown: []}
-    assert length(GoodDealWeb.PortalLive.Show.grounded()) == 3
+    assert length(GoodDealWeb.PortalLive.Show.grounded()) == 4
   end
 
   @stories [

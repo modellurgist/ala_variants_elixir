@@ -5,7 +5,7 @@ defmodule GoodDealWeb.ProductLive.Show do
   alias GoodDeal.Actions.SaveProduct
   alias GoodDeal.Foundation.Products
   alias GoodDeal.State.RecordEdit
-  alias GoodDealWeb.Paradigms.Steps
+  alias GoodDealWeb.Paradigms.{ChangeFeed, Steps}
 
   @doc "Which state each `wire/3` key names, so a test can check every declared port has a clause."
   @parts %{product_form: RecordEdit}
@@ -49,7 +49,13 @@ defmodule GoodDealWeb.ProductLive.Show do
   defp wire(s, :product_form, {:saved, {_action, product}}),
     do:
       s
-      |> assign(:product, product)
+      |> assign(
+        :product,
+        ChangeFeed.publish(
+          [topic: GoodDeal.Catalog.changes_topic(), facts: [:product, :stock]],
+          product
+        )
+      )
       |> put_flash(:info, "Product updated successfully")
       |> push_patch(to: ~p"/products/#{product}")
 end

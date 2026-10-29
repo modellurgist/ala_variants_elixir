@@ -2,11 +2,11 @@
 
 ```mermaid
 flowchart LR
-  outside -->|"stock"| catalog
-  outside -->|"stock"| order
   outside -->|"goto"| submit
   outside -->|"expire"| undo
   catalog -->|"requested → add"| order
+  feed -->|"stock → stock"| catalog
+  feed -->|"stock → stock"| order
   order -->|"removed → capture"| undo
   order -->|"review → review"| submit
   order -.->|"summary"| page_order_summary[page]

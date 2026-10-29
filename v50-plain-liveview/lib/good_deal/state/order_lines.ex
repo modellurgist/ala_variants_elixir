@@ -132,7 +132,7 @@ defmodule GoodDeal.State.OrderLines do
   def confirm_removal(%__MODULE__{} = order, item_id),
     do: {order, [changed: {:removed, order.cart_id, item_id}]}
 
-  def set_stock(%__MODULE__{} = order, %{product_id: product_id, stock: stock}) do
+  def set_stock(%__MODULE__{} = order, {product_id, stock}) do
     case Lines.set_stock(order.items, product_id, stock) do
       {:ok, items, line} -> {%{order | items: items}, [rows: {:changed, row(order, line)}]}
       :none -> {order, []}

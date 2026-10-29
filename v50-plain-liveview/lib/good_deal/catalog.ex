@@ -30,6 +30,9 @@ defmodule GoodDeal.Catalog do
   @doc "The currency every price and charge is in."
   def currency, do: "usd"
 
+  @doc "The topic every page's change feed listens on and every change is published to."
+  def changes_topic, do: "catalog"
+
   @doc "How long a removal can be undone."
   def undo_window_ms, do: 5_000
 

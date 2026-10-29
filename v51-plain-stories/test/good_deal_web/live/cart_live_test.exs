@@ -8,6 +8,8 @@ defmodule GoodDealWeb.CartLiveTest do
   import Ecto.Query
 
   alias GoodDeal.{Catalog, Repo}
+  alias GoodDeal.Domain.ProductFacts
+  alias GoodDealWeb.Paradigms.ChangeFeed
   alias GoodDeal.Foundation.{Carts, Products}
   alias GoodDeal.Foundation.Schemas.CartItem
 
@@ -238,12 +240,47 @@ defmodule GoodDealWeb.CartLiveTest do
   end
 
   describe "real-time stock" do
-    test "a stock_changed fact marks the item out of stock", %{conn: conn} do
+    test "a stock fact marks the item out of stock", %{conn: conn} do
       %{lv: lv, product_a: a} = open_cart(conn)
 
-      send(lv.pid, {:stock_changed, {a.id, 0}})
+      ChangeFeed.publish(
+        %ChangeFeed{topic: Catalog.product_topic(), format: ProductFacts, facts: [:stock]},
+        %{a | stock: 0}
+      )
 
       assert render(lv) =~ "Out of stock"
+    end
+
+    test "a staff stock edit at /products reaches an open cart", %{conn: conn} do
+      %{lv: lv, conn: conn, product_a: a} = open_cart(conn)
+      refute render(lv) =~ "Out of stock"
+
+      {:ok, products, _html} = live(conn, ~p"/products/#{a}/show/edit")
+
+      products
+      |> form("#product-form", product: %{stock: 0})
+      |> render_submit()
+
+      assert render(lv) =~ "Out of stock"
+    end
+
+    test "a purchase reaches an open product list", %{conn: conn} do
+      %{lv: lv, product_a: a} = open_cart(conn)
+      {:ok, products, _html} = live(conn, ~p"/products")
+      expect(GoodDeal.MockPaymentGateway, :charge, fn _, _, _ -> {:ok, "chg_live"} end)
+
+      lv |> element("button", "Checkout") |> render_click()
+
+      lv
+      |> form("[phx-submit=submit_address]",
+        address: %{name: "Ada", line1: "1 Ave", city: "London", postal_code: "12345"}
+      )
+      |> render_submit()
+
+      lv |> element("button", "Pay") |> render_click()
+      assert_redirect(lv, ~p"/cart/success")
+
+      assert products |> element("#products-#{a.id}") |> render() =~ "#{a.stock - 1} in stock"
     end
   end
 

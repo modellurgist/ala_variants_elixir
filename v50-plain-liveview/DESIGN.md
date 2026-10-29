@@ -31,7 +31,7 @@ except inside the application.
 | Application | `GoodDealWeb.*Live.*`, `GoodDealWeb.CartSession`, `GoodDealWeb.CheckoutMetadata`, `GoodDeal.Catalog` | pages (mount, handlers, `wire/3` clauses, templates), the router, store-wide configuration and words |
 | State | `GoodDeal.State.*` | stateful domain abstractions with declared ports: `Cart`, `Undo`, `SavedItems`, `Wishlist`, `Checkout`, `OrderLines`, `PortalCatalog`, `PortalSubmit`, `RecordEdit`, `PageUI` |
 | Domain | `GoodDeal.Domain.*`, `GoodDeal.Actions.*`, `GoodDeal.Cart`, `GoodDeal.Lines` | product-free rules and configured instances: pricing functions, `StockStatus`, `AddLine`, `Charge`, `SettleOrder`, `PlaceOrder`; the cart aggregate and plain line functions |
-| Programming paradigms and foundation | `GoodDealWeb.Paradigms.*`, `GoodDeal.Paradigms.*`, `GoodDeal.Components.*`, `GoodDeal.Foundation.*` | the runner (`Steps`), wiring checks, drawer, `on_mount` subscription hook, state-machine table, generic UI components, stores, PubSub wrapper, payment gateway |
+| Programming paradigms and foundation | `GoodDealWeb.Paradigms.*`, `GoodDeal.Paradigms.*`, `GoodDeal.Components.*`, `GoodDeal.Foundation.*` | the runner (`Steps`), wiring checks, drawer, change feed (`ChangeFeed`), state-machine table, generic UI components, stores, payment gateway |
 
 The layer map lives outside the app, in the linter's configuration: a list of module-name patterns
 per layer, with the application layer allowed internal calls and every lower layer checked for peer
@@ -84,8 +84,9 @@ A page module has four parts, top to bottom.
 2. **`mount/3`** builds each feature and each configured store instance as a plain assign, and loads
    initial data through the runner.
 3. **Handlers.** One `handle_event` clause per browser event, each decoding params and running one
-   feature step. `handle_info` clauses route timer ticks and PubSub facts; `handle_async` routes a
-   task's outcome. Handlers only forward.
+   feature step. `handle_info` clauses route timer ticks; `handle_async` routes a
+   task's outcome. Handlers only forward. Changes made elsewhere arrive through the page's feed part
+   (below), not a `handle_info` clause.
 4. **`wire/3` clauses**, one per declared output port, each saying where that output goes.
 
 ```elixir
@@ -161,7 +162,7 @@ end
 so a page never holds one abstraction's answer to pass to another. Because every wire runs in the same
 process and the same call, effects happen in output order with no message between them.
 
-## Events, URLs, timers, async, store I/O and PubSub
+## Events, URLs, timers, async, store I/O and changes made elsewhere
 
 - **Browser events:** one `handle_event` per event name, decoding string params (`int/1`,
   `String.to_existing_atom/1`) and running one feature input.
@@ -180,9 +181,18 @@ process and the same call, effects happen in output order with no message betwee
 - **Store I/O:** reads go through `Steps.feed` with a plain function capture (`&Carts.list_items/1`).
   Writes are outputs (`changed`) the page wires to a store call. Multi-step store work is a domain
   instance configured with its stores (`%SettleOrder{orders: Orders, carts: Carts, ...}`).
-- **PubSub:** an `on_mount` hook in the paradigm layer subscribes, configured on the page
-  (`on_mount {Subscribed, {Broadcast, :subscribe}}`), so `mount/3` has no `connected?` branch.
-  `handle_info` routes each fact to a feature input.
+- **Changes made elsewhere (added 2026-10-21):** a change feed,
+  `GoodDealWeb.Paradigms.ChangeFeed`. The page lists a configured feed among its parts
+  (`feed: ChangeFeed.new(Catalog.changes_topic(), [:stock])`, so its ports are the fact kinds it listens for)
+  and attaches it in `mount/3` with `ChangeFeed.attach(:feed, @features.feed, &run/3)`. `attach` subscribes
+  once connected and adds a `handle_info` hook that runs each fact through the page's `run`, so it
+  leaves on the feed's port and a `wire/3` clause routes it: `wire(s, :feed, {:stock, change})` →
+  `Cart.set_stock`. The change's side publishes through another instance on the same topic
+  (`ChangeFeed.publish(changes, :stock, product_id, stock)`): `SettleOrder`'s `announce` after a purchase, and
+  the product pages' `saved` clause (`:product` and `:stock`). A fact is a kind and an identity with at
+  most one value; `ChangeFeed` alone knows its shape on the topic. `Wiring` and `Trace` read a configured
+  part's ports from its configuration (`ports/1`), so a feed's ports are checked and traced like a
+  feature's.
 
 ## UI
 
@@ -223,7 +233,8 @@ process and the same call, effects happen in output order with no message betwee
 5. **Move words and calibration up**: page words in a `@texts` map, store-wide values in one
    application module the pages read, and everything passed down as configuration.
 6. **Add the coverage test** (copy `Wiring.gaps/1`) and, if you want it, the drawer.
-7. **Put subscriptions in an `on_mount` hook** and route each fact in `handle_info`.
+7. **List a live feed as a part** for each page that shows changes made elsewhere, wire its ports,
+   and publish each change through an instance on the same topic.
 8. **Run `ala_lint`** with a layer map naming your four layers, and fix what it finds.
 
 ## Trade-offs and limits
@@ -241,6 +252,7 @@ process and the same call, effects happen in output order with no message betwee
 | `lib/good_deal_web/live/cart_live/show.ex` | the full page shape: configuration, mount, handlers, `wire/3` |
 | `lib/good_deal_web/paradigms/steps.ex` | the runner |
 | `lib/good_deal_web/paradigms/wiring.ex`, `drawing.ex` | coverage check and diagram |
+| `lib/good_deal_web/paradigms/change_feed.ex` | the change feed: feed, publish, delivery |
 | `lib/good_deal/state/cart.ex`, `undo.ex`, `checkout.ex` | state modules with ports |
 | `lib/good_deal/domain/add_line.ex`, `charge.ex`, `settle_order.ex` | configured store-work instances |
 | `lib/good_deal/components/` | generic UI components |

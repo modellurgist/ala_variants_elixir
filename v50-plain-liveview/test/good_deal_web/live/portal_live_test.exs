@@ -8,6 +8,7 @@ defmodule GoodDealWeb.PortalLiveTest do
 
   alias GoodDeal.Repo
   alias GoodDeal.Foundation.Carts
+  alias GoodDealWeb.Paradigms.ChangeFeed
   alias GoodDeal.Foundation.Schemas.CartItem
 
   defp open_portal(conn) do
@@ -83,15 +84,15 @@ defmodule GoodDealWeb.PortalLiveTest do
     assert html =~ "Products"
   end
 
-  test "a StockChanged fact updates both the catalog row and an order line", %{conn: conn} do
+  test "a published stock fact updates both the catalog row and an order line", %{conn: conn} do
     %{lv: lv, product_b: b} = open_portal(conn)
 
     lv
     |> element(~s(#portal_products-#{b.id} form))
     |> render_submit(%{"product-id" => b.id, "quantity" => "1"})
 
-    send(lv.pid, {:stock_changed, {b.id, 0}})
-    assert render(lv) =~ "Out of stock"
+    ChangeFeed.publish(ChangeFeed.new(GoodDeal.Catalog.changes_topic()), :stock, b.id, 0)
+    assert render(lv) |> String.split("Out of stock") |> length() == 3
   end
 
   test "removing a line arms the reused undo banner; undo restores it", %{conn: conn} do

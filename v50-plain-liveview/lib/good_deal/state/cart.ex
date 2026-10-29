@@ -144,7 +144,7 @@ defmodule GoodDeal.State.Cart do
   end
 
   # ala:accept clone -- the result-to-outputs shape of every input; OrderLines keeps its own data (§6.17.2)
-  def set_stock(%Cart{} = cart, %{product_id: product_id, stock: stock}) do
+  def set_stock(%Cart{} = cart, {product_id, stock}) do
     case Cart.set_stock(cart, product_id, stock) do
       {:ok, cart, item} -> {cart, [rows: {:changed, row(cart, item)}]}
       :none -> {cart, []}

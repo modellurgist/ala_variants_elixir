@@ -69,6 +69,31 @@ defmodule GoodDealWeb.ProductLiveTest do
     end
   end
 
+  describe "Index, live" do
+    setup [:create_product]
+
+    test "a product saved in another session appears in an open list", %{conn: conn} do
+      {:ok, list, _} = live(conn, ~p"/products")
+      {:ok, other, _} = live(conn, ~p"/products/new")
+
+      other |> form("#product-form", product: @create_attrs) |> render_submit()
+
+      assert render(list) =~ "some name"
+    end
+
+    test "a stock change made elsewhere appears in an open list", %{conn: conn, product: product} do
+      {:ok, list, _} = live(conn, ~p"/products")
+      {:ok, product} = GoodDeal.Foundation.Products.decrement_stock(product.id, product.stock)
+
+      GoodDealWeb.Paradigms.ChangeFeed.publish(
+        [topic: GoodDeal.Catalog.changes_topic(), facts: [:stock]],
+        product
+      )
+
+      assert has_element?(list, "#products-#{product.id}", "Out of stock")
+    end
+  end
+
   describe "Show" do
     setup [:create_product]
 

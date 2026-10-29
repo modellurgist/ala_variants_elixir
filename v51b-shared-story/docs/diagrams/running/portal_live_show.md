@@ -2,13 +2,13 @@
 
 ```mermaid
 flowchart LR
-  outside -->|"stock"| catalog
-  outside -->|"stock"| edit_lines
   outside -->|"goto"| submit
   outside -->|"expire"| undo
   catalog -->|"requested → add"| edit_lines
   edit_lines -->|"contents → contents"| price
   edit_lines -->|"removed → capture"| undo
+  feed -->|"stock → stock"| catalog
+  feed -->|"stock → stock"| edit_lines
   price -->|"review → review"| submit
   price -.->|"summary"| page_price_summary[page]
   submit -.->|"form"| page_submit_form[page]

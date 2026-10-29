@@ -7,7 +7,6 @@ defmodule GoodDealWeb.CartLive.Show do
   an output without a clause crashes the page, and a test checks every declared port has one.
   """
   use GoodDealWeb, :live_view
-  on_mount {GoodDealWeb.Paradigms.Subscribed, {GoodDeal.Foundation.Broadcast, :subscribe}}
   import GoodDeal.Components.{Panes, Parts, Rows}
 
   alias GoodDeal.Catalog
@@ -24,9 +23,9 @@ defmodule GoodDealWeb.CartLive.Show do
   }
 
   alias GoodDeal.State.{Cart, Checkout, PageUI, SavedItems, Undo, Wishlist}
-  alias GoodDeal.Foundation.{Broadcast, Carts, LedgerGateway, Orders, Products}
+  alias GoodDeal.Foundation.{Carts, LedgerGateway, Orders, Products}
   alias GoodDealWeb.{CartSession, CheckoutMetadata}
-  alias GoodDealWeb.Paradigms.Steps
+  alias GoodDealWeb.Paradigms.{ChangeFeed, Steps}
 
   @checkout_flow [
     {:address, :submit_address, :payment},
@@ -97,7 +96,8 @@ defmodule GoodDealWeb.CartLive.Show do
     saved: SavedItems,
     wishlist: Wishlist,
     ui: PageUI,
-    checkout: Checkout
+    checkout: Checkout,
+    feed: ChangeFeed.new(Catalog.changes_topic(), [:stock])
   }
   def features, do: @features
 
@@ -139,7 +139,7 @@ defmodule GoodDealWeb.CartLive.Show do
          orders: Orders,
          carts: Carts,
          products: Products,
-         announce: &Broadcast.stock_changed/2,
+         announce: &ChangeFeed.publish(ChangeFeed.new(Catalog.changes_topic()), :stock, &1, &2),
          cart_id: cart_id
        }
      )
@@ -158,6 +158,7 @@ defmodule GoodDealWeb.CartLive.Show do
      |> stream(:cart_items, [])
      |> stream(:saved_items, [])
      |> stream(:wishlist_products, [])
+     |> ChangeFeed.attach(:feed, @features.feed, &run/3)
      |> Steps.feed(:cart, &Cart.load/2, &Carts.list_items/1, cart_id, &wire/3)
      |> Steps.feed(:saved, &SavedItems.load/2, &Carts.list_saved/1, cart_id, &wire/3)
      |> run(:checkout, &Checkout.show_form(&1, nil))}
@@ -246,14 +247,6 @@ defmodule GoodDealWeb.CartLive.Show do
   def handle_info({:timer, :undo, %{id: id}}, socket),
     do: {:noreply, run(socket, :undo, &Undo.expire(&1, id))}
 
-  def handle_info({:stock_changed, {product_id, stock}}, socket),
-    do:
-      {:noreply, run(socket, :cart, &Cart.set_stock(&1, %{product_id: product_id, stock: stock}))}
-
-  # the topic also carries catalogue edits, which this page doesn't show
-  def handle_info({:product_created, _product}, socket), do: {:noreply, socket}
-  def handle_info({:product_updated, _product}, socket), do: {:noreply, socket}
-
   defp run(socket, key, step), do: Steps.run(socket, key, step, &wire/3)
   defp int(s), do: String.to_integer(s)
 
@@ -322,6 +315,8 @@ defmodule GoodDealWeb.CartLive.Show do
         &wire/3
       )
       |> put_flash(:info, "Added to cart")
+
+  defp wire(s, :feed, {:stock, change}), do: run(s, :cart, &Cart.set_stock(&1, change))
 
   defp wire(s, :ui, {:tab, tab}), do: assign(s, :active_tab, tab)
 

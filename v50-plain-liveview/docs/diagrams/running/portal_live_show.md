@@ -3,11 +3,14 @@
 ```mermaid
 flowchart LR
   outside --> catalog
+  outside --> feed
   outside --> flow
   outside --> order
   outside --> undo
   catalog -->|"requested"| order
   catalog -.->|"rows"| page_catalog_rows[page]
+  feed -->|"stock"| catalog
+  feed -->|"stock"| order
   flow -->|"approved"| flow
   flow -.->|"blocked"| page_flow_blocked[page]
   flow -.->|"form"| page_flow_form[page]

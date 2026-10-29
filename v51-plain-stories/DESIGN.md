@@ -33,8 +33,8 @@ or will grow. For a smaller page, V50 is the same design without stories, and si
 | Application | `GoodDealWeb.*Live.*`, `GoodDealWeb.CartSession`, `GoodDealWeb.CheckoutMetadata`, `GoodDeal.Catalog` | pages: configuration, story mounts, event dispatch, `wire/3` between stories, templates; store-wide words and calibration |
 | Features | `GoodDealWeb.Stories.*` | story modules: `EditCart`, `UndoRemoval`, `SaveForLater`, `KeepWishlist`, `CheckOut` (cart page); `EditOrder`, `BrowseCatalog`, `SubmitOrder` and `UndoRemoval` (portal) |
 | State | `GoodDeal.State.*` | stateful domain abstractions with declared ports: `CartLines`, `Promo`, `CartTotals`, `Undo`, `SavedItems`, `Wishlist`, `Checkout`, `OrderLines`, `PortalCatalog`, `PortalSubmit`, `RecordEdit`, `PageUI` |
-| Domain | `GoodDeal.Domain.*`, `GoodDeal.Actions.*`, `GoodDeal.Lines` | product-free rules and configured store-work instances: pricing functions, `StockStatus`, `AddLine`, `Charge`, `SettleOrder`, `PlaceOrder`; plain functions over a list of stored lines |
-| Programming paradigms and foundation | `GoodDealWeb.Paradigms.*`, `GoodDeal.Paradigms.*`, `GoodDeal.Components.*`, `GoodDeal.Foundation.*` | the runner (`Steps`), wiring checks, drawer, `on_mount` subscription hook, step machine (`Transitions`), generic UI components, stores, PubSub wrapper, payment gateway |
+| Domain | `GoodDeal.Domain.*`, `GoodDeal.Actions.*`, `GoodDeal.Lines` | product-free rules and configured store-work instances: pricing functions, `StockStatus`, `AddLine`, `Charge`, `SettleOrder`, `PlaceOrder`; the product facts that travel live (`ProductFacts`); plain functions over a list of stored lines |
+| Programming paradigms and foundation | `GoodDealWeb.Paradigms.*`, `GoodDeal.Paradigms.*`, `GoodDeal.Components.*`, `GoodDeal.Foundation.*` | the runner (`Steps`), wiring checks, drawer, change feed (`ChangeFeed`), step machine (`Transitions`), generic UI components, stores, payment gateway |
 
 Both the Application and Features layers are composition layers: they instantiate, configure and
 wire, and hold no `if`, `case` on data, or arithmetic. In the linter's layer map, the Features layer is
@@ -221,7 +221,31 @@ same handler call, in output order.
   and `handle_async` clauses use the same names, so only the page knows the two agree.
 - **Store I/O:** reads are `feed` with a function capture; writes are outputs a story wires to a store
   call (`Carts.apply_change/1`); multi-step work is a configured domain instance.
-- **PubSub:** an `on_mount` hook subscribes; the page's `handle_info` sends each fact to a story input.
+- **Change made elsewhere:** a change feed part, `ChangeFeed` (below), so the page's wiring shows it.
+
+## ChangeFeed: change made elsewhere
+
+A page shows another session's purchase or a staff edit through one part of the programming
+paradigms layer. `%ChangeFeed{topic, format, facts}` is both ends: `ChangeFeed.mount/3` subscribes the page and
+sends each fact of a kind in `facts` through the `out` the page gives it, the same `out(:feed)` a
+story gets; `ChangeFeed.publish/2` sends a changed record as the facts its `format` builds. The format,
+`ProductFacts`, declares the ports (`stock: {product_id, stock}`, `product: the saved record`), so
+`@parts` names it under the page's `feed` key and the usual gap check and trace cover it. A page
+grounds the kinds it doesn't take.
+
+```elixir
+feed = %ChangeFeed{topic: Catalog.product_topic(), format: ProductFacts, facts: [:stock]}
+socket |> ... |> ChangeFeed.mount(feed, out(:feed))           # cart and portal subscribe
+settle: %SettleOrder{announce: &ChangeFeed.publish(feed, &1), ...}   # the cart's purchase publishes
+
+defp wire(s, :feed, {:stock, change}), do: to(s, :edit_cart, :stock, change)          # cart
+defp wire(s, :feed, {:stock, change}),
+  do: s |> to(:order, :stock, change) |> to(:catalog, :stock, change)                 # portal
+```
+
+The product pages publish `[:product, :stock]` from their save wire, and the list subscribes to both.
+Delivery is one `handle_info` hook (`attach_hook/4`) the part attaches; it takes its own topic's
+messages and passes every other message on, so the page writes no clause per kind of change.
 
 ## Checks
 
@@ -272,6 +296,7 @@ same handler call, in output order.
 | `lib/good_deal_web/stories/check_out.ex` | a story with a flow, URL paths, a task and page-built instances |
 | `lib/good_deal/state/cart_lines.ex`, `promo.ex`, `cart_totals.ex` | the split cart state |
 | `lib/good_deal_web/paradigms/steps.ex`, `wiring.ex`, `drawing.ex` | runner, checks, drawer |
+| `lib/good_deal_web/paradigms/change_feed.ex`, `lib/good_deal/domain/product_facts.ex` | change feed and the facts it carries |
 | `test/good_deal_web/live/wiring_test.exs` | the coverage, event and diagram tests |
 
 ## The wiring as it ran (2026-10-16)
@@ -286,3 +311,13 @@ change. `Trace` is an ETS table the test helper turns on; off, the pages pay not
 
 The first run reported two declared outputs no test routed, the cart's `ui: :tab` and the portal's
 `undo: :expired`, both wired, both untested, both now tested.
+
+## Later (2026-10-21): change feed
+
+The pages' `handle_info` clauses for `stock_changed`, `product_created` and `product_updated` and the
+`on_mount` hook `Subscribed` became the `ChangeFeed` part above; `Foundation.Broadcast` and the broadcasts
+inside `SaveProduct` went with them, and the save's publishing moved to the page that wires the save.
+The running diagrams now draw `feed -->|"stock → stock"| edit_cart` where they drew an arrow from
+outside. Moving it closed a gap: a staff stock edit at /products reached only the product lists.
+Not closed, and not a one-line wire: a new product doesn't appear in an open portal catalogue, and
+a price edit doesn't reach an open cart; each needs an input port on the state that holds the rows.
